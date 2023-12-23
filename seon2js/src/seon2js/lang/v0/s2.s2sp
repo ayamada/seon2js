@@ -1,0 +1,349 @@
+;;; 各ファイルのコンパイル前に、
+;;; (require-specials "./src/seon2js/lang/v0/s2.s2sp")
+;;; が実行され、自動的にこのファイルが読み込まれる。
+;;; defspecialの内部で参照できる変数については
+;;; src/seon2js/compiler/v0/special.mjs のものがそのまま引き継がれる。
+;;; (ただ将来もこの仕様で進むのかはちょっと不明)
+
+
+;;; TODO: 今は再帰を多用しているが、最終的にはstackを使わない再帰実装が求められる！将来に直す事
+
+
+(defspecial rawjs
+  "(jsCode) => jsCode")
+
+
+(defspecial eval-js-at-compile-time
+  "(jsCode) => {
+    eval(jsCode);
+    return `/* (eval-js-at-compile-time ${JSONS(jsCode)}) */`;
+  }")
+
+
+;;; defstatementは、deleteのような、既存の式の前につけるだけの演算子と
+;;; (これは厳密にはstatementとは呼ばない、expr扱いなので)
+;;; return, break, continueのように単体でも後続部ありでも使われる、
+;;; 一般的なstatementの定義に利用できる(つまり引数が0個もしくは1個のもの)。
+;;; なお後続部が2個以上のもの(const等)については個別に設定する事。
+(defspecial defstatement
+  "(symbol, substitute=S2MN(symbol)) => C([S('defspecial'), symbol, `(expr) => (${JSONS(substitute)} + ((expr == null) ? '' : (' ' + C(expr))))`])")
+
+
+(defstatement return)
+(defstatement new)
+(defstatement delete)
+(defstatement delete! "delete")
+(defstatement break)
+(defstatement continue)
+(defstatement await)
+(defstatement async)
+;;; (defstatement throw!) ; NB: これは関数の方のみ提供する事にした
+
+
+;;; (import-*-as fs "node:fs")
+;;; ↓
+;;; import * as fs from "node:fs"
+(defspecial import-*-as
+  "(ns, source) => {
+    const fromString = isS(source) ? resolveSymbolToNamespace(source)
+      : isStringPure(source) ? reformImportPath(source)
+      : tnE(`invalid 'from' value ${source}`);
+    return `import * as ${S2MN(ns)} from ${JSONS(fromString)}`;
+  }")
+
+
+;;; (import "node:fs" [existsSync [default :as fs]])
+;;; ↓
+;;; import { existsSync, default as fs } from "node:fs"
+;;;
+;;; (import "./foo.js")
+;;; ↓
+;;; import from "./foo.js"
+;;;
+;;; (import "node:fs" fs)
+;;; ↓
+;;; import * as fs from "node:fs"
+(defspecial import
+  "(source, bindings=undefined) => {
+     if (isS(bindings)) { return C([S('import-*-as'), bindings, source]) }
+     const bindingString = (bindings && bindings?.length) ? ('{ ' + bindings.map((b)=>{
+       if (isS(b)) {
+         return S2MN(b);
+       } else if (isArray(b)) {
+         const [origSym, as, newSym] = b;
+         assert(as === K('as'));
+         return `${S2MN(origSym)} as ${S2MN(newSym)}`;
+       } else {
+         tnE(`found unknown bindings ${JSONS(b)}`);
+       }
+     }).join(', ') + ' }') : '';
+     const fromString = isS(source) ? resolveSymbolToNamespace(source)
+       : isStringPure(source) ? reformImportPath(source)
+       : tnE(`invalid 'from' value ${source}`);
+     return `import ${bindingString} from ${JSONS(fromString)}`;
+  }")
+
+
+;;; TODO: clojureのnsのように、一つのdefspecialで複数のimportを一度にできる構文があった方が便利なのだが、どういう構文が最適かが微妙なので、仮運用してみる。これで問題なければ、もっといい名前にして正式採用したい
+;;; (import-all {"node:fs"   [existsSync [default :as fs]]
+;;;              "./foo.js"  []
+;;;              "node:path" path})
+;;; ↓
+;;; import { existsSync, default as fs } from "node:fs"
+;;; import from "./foo.js"
+;;; import * as path from "node:path"
+(defspecial import-all
+  "(definitionObject) => {
+     const results = [];
+     for (const k in definitionObject) {
+       let v = definitionObject[k];
+       // NB: vがnull, nil, undefinedのsymbolだった場合のみ特別扱いする
+       const stringifiedSymbolName = S2MN(v);
+       if (({'null':1, 'nil':1, 'undefined':1})[stringifiedSymbolName ?? '']) { v = undefined }
+       results.push(C([S('import'), k, v]));
+     }
+     return results.join('\\n');
+   }")
+
+
+;;; NB: s2.s2mjs 専用の、clojure.coreの自動useのように機能するimport
+;;; (s2-import "./path/to/s2.s2mjs")
+;;; ↓
+;;; import { ... } from "./path/to/s2.s2mjs"
+(defspecial s2-import
+  "(source) => {
+    prepareS2exportTable();
+    const targets = Object.keys(s2exportTable).map(S2MN).join(', ');
+    return `import { ${targets} } from ${JSONS(source)}`;
+  }")
+
+
+(defspecial s2/quote
+  "(struct) => {
+    // TODO: これでは正規表現等が壊れる！きちんと対応する必要があるが後回し
+    return JSONS(struct);
+  }")
+
+
+(defspecial s2/quasiquote
+  "(struct) => {
+    // TODO: 現状は未対応
+    return C([S('s2/quote'), struct]);
+  }")
+;;; TODO
+;;; defmacroの為に、以下の特殊シンボルの処理が必要
+;;; - s2/quote - 普通のlispのquoteと同じ
+;;; - s2/quasiquote - 普通のlispのquasiquoteと同じ
+;;; - s2/unquote - 専用のエラーを投げる関数を定義(本来の目的はquasiquoteが全て面倒を見る)
+;;; - s2/unquote-splicing - 専用のエラーを投げる関数を定義(本来の目的はquasiquoteが全て面倒を見る)
+;;; - s2/deref - 特定のディスパッチテーブルを見る、専用の関数を定義
+;;; unquote, unquote-splicing, deref は「関数」が必要で、
+;;; つまり本来であれば *.seon ソースでの提供が必要。
+;;; しかし今のところ「システムライブラリ」の提供方法が未定。
+;;; defmacro含め、他の部分の実装が進んでからの対応とする
+
+
+;;; (let symbol expr)
+;;; ↓
+;;; let symbol = expr
+;;;
+;;; (let symbol)
+;;; ↓
+;;; let symbol
+(defspecial let
+  "(symbol, expr) => {
+     const tail = (expr === undefined) ? '' : ` = ${C(expr)}`;
+     return `let ${S2MN(symbol)}${tail}`;
+   }")
+
+
+;;; (const symbol expr)
+;;; ↓
+;;; const symbol = expr
+(defspecial const
+  "(symbol, expr) => `const ${S2MN(symbol)} = ${C(expr)}`")
+
+
+;;; (fn [arg1 arg2 arg3] expr1 expr2 expr3)
+;;; ↓
+;;; function (arg1, arg2, arg3) { expr1; expr2; return expr3 }
+;;;
+;;; (fn symbol [arg1 arg2 arg3] expr1 expr2 expr3)
+;;; ↓
+;;; function symbol (arg1, arg2, arg3) { expr1; expr2; return expr3 }
+;;; TODO: 現バージョンのgccはfunction(){}を()=>{}形式にminifyしてくれない！自前で()=>{}展開するとサイズ最適化できる({}なしにできると最高だが、{}ありでも小さくはなる)。あとでサイズ最適化をもっと考える(でも今は動作の方を最優先)
+(defspecial fn "makeFn()")
+(defspecial function "makeFn()")
+(defspecial fn-async "makeFn('async')")
+(defspecial constfn
+  ;; fnの引数はsymbolが入るか入らないかの差があるのでparseが案外難しい
+  "(symbol, ... fnargs) => C([S('const'), symbol, [S('fn'), ... fnargs]])")
+(defspecial constfn-async
+  ;; fnの引数はsymbolが入るか入らないかの差があるのでparseが案外難しい
+  "(symbol, ... fnargs) => C([S('const'), symbol, [S('fn-async'), ... fnargs]])")
+
+
+;;; (export (const foo 123))
+;;; ↓
+;;; export const foo = 123;
+;(defspecial export "(expr) => 'export ' + C(expr)")
+(defstatement export)
+
+(defspecial export-const
+  "(... args) => C([S('export'), [S('const'), ... args]])")
+
+(defspecial export-constfn
+  "(... args) => C([S('export'), [S('constfn'), ... args]])")
+
+(defspecial export-constfn-async
+  "(... args) => C([S('export'), [S('constfn-async'), ... args]])")
+
+
+;;; s2-export系はexportと同時にs2exportTableに登録する
+(defspecial s2-export-const
+  "(... args) => (s2exportTable[args[0]]=1, C([S('export-const'), ... args]))")
+(defspecial s2-export-constfn
+  "(... args) => (s2exportTable[args[0]]=1, C([S('export-constfn'), ... args]))")
+
+
+(defspecial definfix "(symbol, delimiter) => C([S('defspecial'), symbol, `(... args) => ('(' + args.map(C).join(')${delimiter}(') + ')')`])")
+(defspecial definfix2 "(symbol, delimiter) => C([S('defspecial'), symbol, `(a, b) => ('(' + C(a) + ')${delimiter}(' + C(b) + ')')`])")
+
+(definfix and "&&")
+(definfix or "||")
+(definfix or* "??") ; TODO: もっといい名前にしたいが…。なお現在の仕様上ではこの名前を ?? そのままにする事はできない
+(definfix2 set! "=")
+
+;;; NB: 以下はfnの方にも定義してあるので、修正する場合は連動させる事
+(definfix2 === "===")
+(definfix2 == "==")
+;;; NB: = は封印する(jsの=(set!相当)と、clojureの=と、どっちなのか混乱する為)
+(defspecial = "(... _) => tnE('deprecated. should use === or set!')")
+(definfix2 not=== "!==") ; 同上
+(definfix2 not== "!=") ; 同上
+(definfix2 not= "!==") ; 同上
+(defspecial not "(expr) => `!(${C(expr)})`")
+(definfix + "+")
+(defspecial str "(... args) => C([S('+'), '', ... args])")
+(definfix - "-")
+(definfix * "*")
+(definfix / "/")
+
+
+;;; (do expr1 expr2 expr3)
+;;; ↓
+;;; ( expr1, expr2, expr3 )
+;;; or
+;;; { expr1; expr2; expr3 }
+(defspecial do
+  ;; "(... bodies) => ('{' + bodies.map(C).join(';\\n') + '}')"
+  ;; or
+  ;; "(... bodies) => ('((' + bodies.map(C).join('), (') + '))')"
+  "(... bodies) => stringifyBodies(bodies)")
+
+
+;;; NB: ifの中にstatementを入れる事はできない
+(defspecial if
+  "(expr1, expr2, expr3) => `(${C(expr1)}) ? (${C(expr2)}) : (${C(expr3)})`")
+
+
+(defspecial cond
+  ;; ifの連鎖に変換する(とても多くstackを消費する)
+  "(p, v, ... leftover) => C([S('if'), p, v, (leftover.length ? C([S('cond'), ... leftover]) : undefined)])")
+
+;;; NB: bodiesが全てexprなら、変形後もexprになる。
+;;;     bodiesにstatementが一個でもあれば、変形後もstatementになる。
+;;;     要注意！
+(defspecial when
+  "(expr, ... bodies) => {
+     const stringifiedBodies = stringifyBodies(bodies);
+     if (isBeginStatement(stringifiedBodies)) {
+       // jsのif文で返す(statement扱い)
+       return `if (${C(expr)}) ${stringifiedBodies}`;
+     } else {
+       // jsの三項演算子で返す(expr扱い)
+       return `((${C(expr)}) ? ${stringifiedBodies} : undefined)`;
+     }
+   }")
+(defspecial when-not
+  "(expr, ... bodies) => C([S('when'), [S('not'), expr], ... bodies])")
+
+
+;;; NB: 以下はfnの方にも定義してあるので、修正する場合は連動させる事
+(defspecial object
+  "(... kvs) => {
+     const buf = [];
+     while (kvs.length) {
+       buf.push(compileObjectEntry(kvs.slice(0, 2)));
+       kvs = kvs.slice(2);
+     }
+     return '{' + buf.join(',') + '}';
+   }")
+
+
+(defspecial aget
+  "(a, b) => {
+     // NB: 関数版ならaもbも型が確定しているが、
+     //     マクロ版はexprやsymbolの場合がある。
+     //     この時は確定は諦めて関数版に展開するしかない。
+     //     ただ、aかbのどちらかがkeyword, 非saのstring, 数値、のいずれかなら
+     //     それはkey確定なので、このフェーズで展開できる。
+     if (isK(a)) {
+       return `(${C(b)}).${K2MN(a)}`;
+     } else if (isK(b)) {
+       return `(${C(a)}).${K2MN(b)}`;
+     } else if (isStringPure(a)) {
+       return `(${C(b)})[${JSONS(a)}]`;
+     } else if (isStringPure(b)) {
+       return `(${C(a)})[${JSONS(b)}]`;
+     } else if (isNonNegativeInteger(a)) {
+       return `(${C(b)})[${a}]`;
+     } else if (isNonNegativeInteger(b)) {
+       return `(${C(a)})[${b}]`;
+     } else {
+       return `aget(${C(a)}, ${C(b)})`;
+     }
+   }")
+
+
+;;; NB: (aget a b) のように、aとbの両方がsymbolの場合は上記の解決ができず、
+;;;     関数版agetに丸投げになってしまい、効率が落ちる。それが嫌なので結局、
+;;;     foo[idx] に展開される専用のspecial-formを用意する事にした
+;;; TODO: もっと良い名前はある？ない？
+;;; (lookup obj prop)
+;;; ↓
+;;; (obj)[prop]
+(defspecial lookup
+  "(obj, prop) => `(${C(obj)})[${C(prop)}]`")
+
+
+;;; (try
+;;;   ...
+;;;   (catch e
+;;;     ...)
+;;;   (finally
+;;;     ...))
+(defspecial try
+  "(... bodies) => {
+     let stringifiedCatch = '';
+     let stringifiedFinally = '';
+     while (bodies.length) {
+       const last = bodies[bodies.length-1];
+       if (isArray(last) && !isV(last)) {
+         if (last[0] === S('catch')) {
+           stringifiedCatch = (`catch (${C(last[1])}) { ` + last.slice(2).map(C).join(';\\n') + ' }');
+           bodies = bodies.slice(0, -1);
+           continue;
+         } else if (last[0] === S('finally')) {
+           stringifiedFinally = ('finally { ' + last.slice(1).map(C).join(';\\n') + ' }');
+           bodies = bodies.slice(0, -1);
+           continue;
+         }
+       }
+       break;
+     }
+     const stringifiedBody = bodies.map(C).join(';\\n');
+     return `try { ${stringifiedBody} } ${stringifiedCatch} ${stringifiedFinally}`;
+   }")
+
+;;; vim:set ft=clojure:

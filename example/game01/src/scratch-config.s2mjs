@@ -1,0 +1,61 @@
+;;; TODO: もっといいモジュール名を思いついたら変更する
+
+
+(import-all {"./version.mjs" [version]})
+
+
+(export-const display-debug-key undefined)
+;(export-const display-debug-key "ta1")
+;(export-const display-debug-key "ta2")
+
+
+(export-const use-cheat? display-debug-key)
+(export-const support-scrolling-snow? 1)
+
+
+(export-const words
+  {:titleText "宇宙エルフの宇宙クリスマス"
+   :titleSubText "Lisp Advent Calendar 2023 24日目"
+   :endingText "Merry Christmas!"
+   :versionText (str "version: " version)
+   :articleUrl "https://github.com/ayamada/seon2js/blob/main/docs/lisp-advent-calendar-2023.md" ;; TODO: urlがこれであってるか確認を取る事
+   })
+
+
+(export-const canvas-setup-options
+  {:id "scratch-canvas"
+   :offScreenMarginPx 16
+   :aspectRatio (/ 16 9)
+   :glOptions {}
+   :ooaRatioLR [1 1]
+   :ooaRatioTB [1 1]})
+
+
+(export-const gl-config
+  {:isUseGlBlend 1
+   :isUseGlCull 0 ; TODO: 本当は真にしたいが、そうするとマイナスのwによる左右反転が「逆向き」と判断されて表示されなくなってしまう。sprite内でwにMath.absをかける事で対応したいところ
+   :isUseGlStencil 0
+   :isUseGlDepthTest 0})
+
+
+(export-const default-button-bg-color
+  {:r 0.1
+   :g 0.1
+   :b 0.5
+   :a 1})
+
+
+(export-const confetti-options
+  {;:texKey resource/TEXKEY.texTextSnow ; TEXKEYは(resource.loadAll)が実行される前は存在しない、後で設定するしかない
+   :isFalling 1
+   :isSquare 1
+   :useBillBoard 1
+   :fallingStartPointWidthRatio (if support-scrolling-snow? 1.3 1.1)
+   :baseSize 0.01})
+
+
+
+
+
+
+;;; vim:set ft=clojure:

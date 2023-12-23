@@ -1,0 +1,114 @@
+;;; NB: この s2.s2mjs のみ特別扱いで、clojureにおけるclojure.coreのように、
+;;;     暗黙の内に、namespace指定抜きで自動的にimportされる。
+;;;     (具体的には、勝手に `import {...} from "..."` が先頭に追加される)
+
+
+;;; TODO: seon2jsはトランスパイラなので、最終的には全部defspecialにしたい。
+;;;       そうすれば↑のimport処理は不要になる。
+;;;       ただ普通に全部defspecialにしてしまうと、コード量がふくらんだり、
+;;;       reduce, map, forEachに直に渡す事ができなくなるデメリットがあるので、
+;;;       専用の展開マクロを用意する形がベスト。
+;;;       (ソース中に使われてる時だけ実関数定義を生やすようなやつ)
+;;;       これについてはもうちょっと後でいい仕様を考えたい
+
+
+;;; NB: これらは可能なら使わない方がいい(依存ライブラリを増やしたくないので)
+;;; (import-*-as sa "seon/sa")
+;;; (import-*-as sym "seon/sym")
+;;; (import-*-as seon "seon/seon")
+
+
+(s2-export-const nil #nil)
+
+
+;;; NB: statement扱いではなく、expr扱いのthrowを提供する
+(s2-export-const throw! (rawjs "function (exc) { throw exc }"))
+
+(s2-export-constfn throw-new-error [msg]
+  (throw! (new (Error msg))))
+
+
+;;; もしexprレベルにunquoteやunquote-splicingが出てきたら、それはエラーにする
+(constfn tne-illegal-call [... _] (throw-new-error "illegal call"))
+(s2-export-const unquote tne-illegal-call)
+(s2-export-const unquote-splicing tne-illegal-call)
+
+
+;;; TODO: deref処理のディスパッチテーブルおよび登録関数が必要、後で考える
+(s2-export-constfn deref [x]
+  (throw-new-error "not implemented yet"))
+
+
+;;; NB: seon2jsでは、vectorもarrayの一種
+(s2-export-constfn array? [a] (Array.isArray a))
+(s2-export-constfn vector? [a] (and (array? a) (rawjs "a['%V']")))
+(s2-export-constfn object? [a] (=== a?.constructor Object))
+;;; NB: seon2jsでは、symbolやkeywordもstringの一種
+(s2-export-constfn string? [a] (=== a?.constructor String))
+(s2-export-constfn nully? [a] (== a null)) ; nullかundefinedなら真
+(s2-export-constfn < [a b] (rawjs "(a < b)"))
+(s2-export-constfn <= [a b] (rawjs "(a <= b)"))
+(s2-export-constfn > [a b] (rawjs "(a > b)"))
+(s2-export-constfn >= [a b] (rawjs "(a >= b)"))
+;;; array[i] のiの検査用
+(s2-export-constfn non-negative-integer? [a]
+  (and (Number.isInteger a)
+       (<= 0 a)))
+
+
+(s2-export-constfn aget [a b]
+  ;; aとbのどっちかがkey(stringもしくは数値)で残りがarrayもしくはobject。
+  ;; それ以外の場合はclojureに準じてnullを返す(例外は投げない)。
+  ;; ここではkeyのmanglingは考えなくてよい(manglingが必要なら外側で行うべき)
+  (const a-struct? (or (array? a) (object? a)))
+  (const b-struct? (or (array? b) (object? b)))
+  (const a-key? (or (string? a) (non-negative-integer? a)))
+  (const b-key? (or (string? b) (non-negative-integer? b)))
+  (const struct (if a-struct? a b))
+  (const key (if a-struct? b a))
+  (when (or (and a-struct? b-key?)
+            (and b-struct? a-key?))
+    (rawjs "struct[key]")))
+
+
+(s2-export-constfn car [x] (aget x 0))
+(s2-export-constfn cdr [x] (rawjs "x?.slice?.[1]"))
+(s2-export-constfn cadr [x] (aget x 1))
+
+
+
+
+
+;;; NB: 以下の処理のbody中の同名symbolはdefspecialの方に定義してある。
+;;;     本当はclojureのdefinlineみたいな形式にできればよいのだが…。
+(s2-export-constfn === [a b] (=== a b))
+(s2-export-constfn == [a b] (== a b))
+;;; NB: = は封印する(jsの=(set!相当)と、clojureの=と、どっちなのか混乱する為)
+(s2-export-constfn = [... _]
+  (throw-new-error "deprecated. should use === or set!"))
+(s2-export-constfn not=== [a b] (not=== a b))
+(s2-export-constfn not== [a b] (not== a b))
+(s2-export-constfn not= [a b] (not= a b))
+(s2-export-constfn not [a] (not a))
+(s2-export-constfn + [... args]
+  (args.reduce (fn [acc v] (+ acc v))))
+(s2-export-constfn str [... args]
+  (args.reduce (fn [acc v] (+ acc v))
+               ""))
+(s2-export-constfn - [... args]
+  (args.reduce (fn [acc v] (- acc v))))
+(s2-export-constfn * [... args]
+  (args.reduce (fn [acc v] (* acc v))))
+(s2-export-constfn / [... args]
+  (args.reduce (fn [acc v] (/ acc v))))
+
+
+;;; TODO: (=== [1 2] [1 2]) が真となるような===(比較関数)が必要。schemeでの equal? 相当。良い名前も考える事
+
+
+(s2-export-constfn object [... kvs]
+  (throw-new-error "not implemented yet") ; TODO: がんばって実装しましょう
+  )
+
+
+;;; vim:set ft=clojure:

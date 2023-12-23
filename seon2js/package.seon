@@ -1,0 +1,33 @@
+;;; -*- mode: clojure; coding: utf-8; -*-
+;;; vim:set ft=clojure:
+{:name seon2js
+ :version "0.1.1" ; TODO: Bump up automatically
+ :description "transpile from seon to js"
+ :homepage "https://github.com/ayamada/seon2js"
+ :private false
+ :author "ayamada"
+ :files ["package.json"
+         "README.md"
+         "src/"
+         "src-compiler/"
+         "cli-seon2js.mjs"
+         "LICENSE"]
+ :exports {"." "./cli-seon2js.mjs"}
+ :main "./cli-seon2js.mjs"
+ :bin {seon2js "./cli-seon2js.mjs"}
+ :dependencies {seon "0.1.0"
+                chokidar "3.5.3"}
+ :devDependencies {rimraf   "5.0.5"
+                   chai     "4.3.10"}
+ :scripts {update-package.json "npx seon2json package.seon package.json"
+           ;; For test
+           test            "node test/index.mjs"
+           test-s2js-clean "rimraf test/dst"
+           test-s2js-once  "npx seon2js --srcDir test/src --dstDir test/dst"
+           test-s2js-watch "npx seon2js --srcDir test/src --dstDir test/dst --watch"
+           ;; For internal develop
+           link-seon  "cd ../seon && npm link"
+           link-all   "npm run link-seon && npm link seon"
+           unlink-all "npm unlink seon && npm rm -g seon"
+           distclean  "rimraf node_modules package-lock.json"}
+ :license :Zlib}
