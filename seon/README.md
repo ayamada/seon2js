@@ -50,5 +50,8 @@ but different below.
 
 ## ChangeLog
 
+- 0.2.0: 20231226
+    - Keep line number information by passing util.renameInternalSeonNamespaces
+
 - 0.1.0: 20231223
     - Initial Release

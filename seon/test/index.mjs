@@ -2,6 +2,7 @@ import { assert } from 'chai';
 import * as sa from 'seon/sa';
 import * as sym from 'seon/sym';
 import * as seon from 'seon/seon';
+import * as util from 'seon/util';
 
 
 // https://www.chaijs.com/api/assert/
@@ -420,11 +421,31 @@ const testSeon = () => {
 };
 
 
+const testUtil = () => {
+  // renameInternalSeonNamespaces
+  const result1 = seon.readAllFromSeonString(`
+  123
+  ababa
+  '(+ 1 2)`);
+  const meta = seon.getLastMetaMap();
+  const metaResult = {
+    filename: '(unknown)',
+    lineNo: 4,
+    colNo: 3,
+  };
+  assert.deepEqual(meta.get(result1[2]), metaResult);
+  const result2 = util.renameInternalSeonNamespaces(result1, 'foobar');
+  assert.deepEqual(meta.get(result2[2]), metaResult);
+  assert.deepEqual(meta.get(result1[2][1]), meta.get(result2[2][1]));
+};
+
+
 const main = () => {
   testChai();
   testSa();
   testSym();
   testSeon();
+  testUtil();
 };
 
 

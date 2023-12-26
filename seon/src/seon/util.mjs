@@ -13,11 +13,35 @@ const kvs2obj = (kvs) => {
   }
   return o;
 };
-// TODO: このpostwalkがmetaを維持できなくてはならない！しかしどうすればよい？
-export const postwalk = (tree, converter) => (seon.isVector(tree) ? seon.markAsVector(converter(tree.map((v)=>postwalk(v, converter))))
+const postwalk = (tree, converter) => (seon.isVector(tree) ? seon.markAsVector(converter(tree.map((v)=>postwalk(v, converter))))
   : isArray(tree) ? converter(tree.map((v)=>postwalk(v, converter)))
   : isObject(tree) ? converter(kvs2obj(Object.keys(tree).flatMap((k)=>[converter(k), postwalk(tree[k], converter)])))
   : converter(tree));
+
+
+export const postwalkWithMeta = (inputTree, converter) => {
+  const metaMap = seon.getLastMetaMap();
+  const migrateMeta = (src, dst) => {
+    const m = metaMap.get(src);
+    if (m !== undefined) { metaMap.set(dst, m) }
+  };
+  const postwalk2 = (tree) => {
+    const result = seon.isVector(tree) ? seon.markAsVector(converter(tree.map(postwalk2)))
+      : isArray(tree) ? converter(tree.map(postwalk2))
+      : isObject(tree) ? converter(kvs2obj(Object.keys(tree).flatMap((k)=> {
+        const v = tree[k];
+        const newK = converter(k);
+        const newV = postwalk2(v);
+        migrateMeta(k, newK);
+        migrateMeta(v, newV);
+        return [newK, newV];
+      })))
+      : converter(tree);
+    migrateMeta(tree, result);
+    return result;
+  };
+  return postwalk2(inputTree);
+};
 
 
 // seon構造データをjson文字列に変換して返す。
@@ -45,4 +69,4 @@ export const convertSeonStringToJsonString = (seonString, filename=undefined) =>
 
 
 // seon構造データをなめ、全内部symbolの内の %SEON 名前空間のrenameを行う
-export const renameInternalSeonNamespaces = (seonData, newNamespaceString) => postwalk(seonData, (tree) => (sym.isSymbol(tree) && sym.referNamespace(tree) === '%SEON') ? sym.spawnWithAnotherNamespace(tree, newNamespaceString) : tree);
+export const renameInternalSeonNamespaces = (seonData, newNamespaceString) => postwalkWithMeta(seonData, (tree) => (sym.isSymbol(tree) && sym.referNamespace(tree) === '%SEON') ? sym.spawnWithAnotherNamespace(tree, newNamespaceString) : tree);
