@@ -35,9 +35,7 @@
 
 ## TODO
 
-- エラー時にソース行番号が全然出てこない問題の修正
-    - おそらくseonUtil.renameInternalSeonNamespaces()の際にmetaを引き継ぎできてないのが原因。postwalkの改善が必要(結構難しい)
-    - 同時に、tnEwL内で、既に行番号情報などがついてたら追加しないようにする対応も必要
+- tnEwL内で、既に行番号情報などがついてたら追加しないようにする対応
 - ビルド時の最適化フラグ実装(cli内コメント参照)
 - clojureのvar的な何かを導入(namespaceなしsymbolを正しくresolveする為に必要)
 - defmacro実装
