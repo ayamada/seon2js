@@ -31,6 +31,7 @@ const isStringOrSa = (s) => (s?.constructor === String);
 const isStringPure = (s) => (isStringOrSa(s) && !sa.isSaLikeString(s));
 const tnE = (msg) => { throw new Error(msg) };
 const tnEwL = (msg, expr) => {
+  if (/ at line\=\d+ col\=\d+ in filename\=/.test(msg)) { tnE(msg) }
   const meta = currentEnv?.metaMap?.get(expr);
   const suffix = meta ? ` at line=${meta.lineNo} col=${meta.colNo} in filename=${meta.filename}` : '';
   tnE(`${msg} ${expr}${suffix}`);
