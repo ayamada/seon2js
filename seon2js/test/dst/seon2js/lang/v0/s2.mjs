@@ -1,3 +1,4 @@
+export const nil = null;
 export const doThrow = function (exc) { throw exc };
 export const throwNewError = ( (msg) => ((doThrow)((new (Error)((msg))))));
 const tneIllegalCall = ( (... _) => ((throwNewError)(("illegal call"))));
@@ -26,10 +27,14 @@ export const cdr = ( (x) => (x?.slice?.[1]));
 export const cadr = ( (x) => ((x)[1]));
 export const _EQ__EQ__EQ_ = ( (a, b) => ((a)===(b)));
 export const _EQ__EQ_ = ( (a, b) => ((a)==(b)));
-export const _EQ_ = ( (a, b) => ((a)===(b)));
-export const _BANG__EQ_ = ( (a, b) => ((a)!==(b)));
+export const _EQ_ = ( (... _) => ((throwNewError)(("deprecated. should use === or set!"))));
+export const not_EQ__EQ__EQ_ = ( (a, b) => ((a)!==(b)));
+export const not_EQ__EQ_ = ( (a, b) => ((a)!=(b)));
 export const not_EQ_ = ( (a, b) => ((a)!==(b)));
 export const not = ( (a) => (!(a)));
 export const _PLUS_ = ( (... args) => ((args.reduce)((( (acc, v) => ((acc)+(v)))))));
 export const str = ( (... args) => ((args.reduce)((( (acc, v) => ((acc)+(v)))), (""))));
+export const _MINUS_ = ( (... args) => ((args.reduce)((( (acc, v) => ((acc)-(v)))))));
+export const _STAR_ = ( (... args) => ((args.reduce)((( (acc, v) => ((acc)*(v)))))));
+export const _SLASH_ = ( (... args) => ((args.reduce)((( (acc, v) => ((acc)/(v)))))));
 export const object = ( (... kvs) => ((throwNewError)(("not implemented yet"))))
