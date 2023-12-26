@@ -1,7 +1,7 @@
 ;;; -*- mode: clojure; coding: utf-8; -*-
 ;;; vim:set ft=clojure:
 {:name seon2js
- :version "0.1.1" ; TODO: Bump up automatically
+ :version "0.1.2" ; TODO: Bump up automatically
  :description "transpile from seon to js"
  :homepage "https://github.com/ayamada/seon2js"
  :private false
@@ -15,7 +15,7 @@
  :exports {"." "./cli-seon2js.mjs"}
  :main "./cli-seon2js.mjs"
  :bin {seon2js "./cli-seon2js.mjs"}
- :dependencies {seon "0.1.0"
+ :dependencies {seon     "0.2.0"
                 chokidar "3.5.3"}
  :devDependencies {rimraf   "5.0.5"
                    chai     "4.3.10"}

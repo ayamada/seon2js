@@ -18,6 +18,11 @@ And, if you want to supervise to change src files, add `--watch` option.
 
 ## ChangeLog
 
+- 0.1.2: 20231226
+    - Bump up version of seon
+    - Fix redundant error log
+    - Fix test by `npm run test-s2js-once`
+
 - 0.1.1: 20231223
     - Move chokidar from devDependencies to dependencies for cli
 

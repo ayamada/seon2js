@@ -1,4 +1,4 @@
-import { doThrow, throwNewError, unquote, unquoteSplicing, deref, isArray, isVector, isObject, isString, isNully, _LT_, _LT__EQ_, _GT_, _GT__EQ_, isNonNegativeInteger, aget, car, cdr, cadr, _EQ__EQ__EQ_, _EQ__EQ_, _EQ_, _BANG__EQ_, not_EQ_, not, _PLUS_, str, object } from "./seon2js/lang/v0/s2.mjs";
+import { nil, doThrow, throwNewError, unquote, unquoteSplicing, deref, isArray, isVector, isObject, isString, isNully, _LT_, _LT__EQ_, _GT_, _GT__EQ_, isNonNegativeInteger, aget, car, cdr, cadr, _EQ__EQ__EQ_, _EQ__EQ_, _EQ_, not_EQ__EQ__EQ_, not_EQ__EQ_, not_EQ_, not, _PLUS_, str, _MINUS_, _STAR_, _SLASH_, object } from "./seon2js/lang/v0/s2.mjs";
 import { default as fs } from "node:fs";
 import { default as process } from "node:process";
 import { default as path } from "node:path";
