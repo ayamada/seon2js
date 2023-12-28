@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "rimraf": "5.0.5",
-    "chai": "4.3.10"
+    "chai": "5.0.0"
   },
   "scripts": {
     "update-package.json": "npx seon2json package.seon package.json",
