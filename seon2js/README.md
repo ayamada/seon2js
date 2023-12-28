@@ -16,7 +16,12 @@ To convert from all `*.s2mjs` and `*.s2js` files in srcDir, to dstDir.
 And, if you want to supervise to change src files, add `--watch` option.
 
 
-## ChangeLog
+## ChangeLog (ALPHA)
+
+リリース時に消してまとめます
+
+- 1.0.1-ALPHA: 20231229
+    - Migrate seon-util/postwalk to seon-util/postwalkWithMeta
 
 - 1.0.0-ALPHA: 20231229
     - Change naming rule of some special forms
@@ -28,6 +33,8 @@ And, if you want to supervise to change src files, add `--watch` option.
             - `(export-const-async-fn foo [] ...)` likes `export const foo = async () => ...;`
     - Remove many fns in s2.s2mjs for future implementations
     - Failed to transpile `example/game01/` now, but will repair in future
+
+## ChangeLog
 
 - 0.1.2: 20231226
     - Bump up version of seon

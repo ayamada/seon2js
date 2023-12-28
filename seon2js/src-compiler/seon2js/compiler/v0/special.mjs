@@ -143,7 +143,7 @@ const prepareS2exportTable = () => {
       filename: s2s2mjsPath,
       currentNamespace: 'user', // TODO: あとでfilepathから生成するようにする
     }, fs.readFileSync(s2s2mjsPath, "utf-8"));
-    seonUtil.postwalk(exprs, (expr) => {
+    seonUtil.postwalkWithMeta(exprs, (expr) => {
       if (isArray(expr) && sym.isSymbol(expr[0]) && (!sym.symbol2string(expr[0]).indexOf('s2-export-'))) { s2exportTable[expr[1]] = 1 }
       return expr;
     });
