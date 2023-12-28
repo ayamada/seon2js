@@ -50,6 +50,9 @@ but different below.
 
 ## ChangeLog
 
+- 0.3.0: 20231229
+    - `sym.kebab2camel` changes from `foo!` to `foo`, not `doFoo` now
+
 - 0.2.0: 20231226
     - Keep line number information by passing util.renameInternalSeonNamespaces
 

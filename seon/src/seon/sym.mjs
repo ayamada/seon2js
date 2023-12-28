@@ -233,7 +233,7 @@ const mangleTable = {
   '|': '_BAR_',
   '~': '_TILDE_',
   '!': '_BANG_',
-  // NB: 以下はminifyに重要なのでmanglingしない
+  // NB: 以下はminifyに重要なのでmanglingせずそのまま残す
   //'?': '_QMARK_',
 };
 const capitalize = (s) => s.length ? (s[0].toUpperCase() + s.slice(1)) : s;
@@ -242,16 +242,16 @@ export const kebab2camel = (s) => {
   // jsから扱えるよう、symbolはmangleを確実に行える必要がある。
   // (完璧なdemangleは一旦諦める)
   // 現状は以下のルールでmangleを行う
-  // - 末尾 / は特別扱い。 _SLASH_ に置換する(優先)
+  // - 末尾 / は特別扱い。 _SLASH_ に置換する(最優先)
   s = s.replace(/\/$/, '_SLASH_');
   // - 上記以外の / は . に置換する(将来はきちんとnsやvarの解決をする)(優先)
   s = s.replace("/", '.');
   // - . は基本そのままにする(一部問題のあるケースはある。あとで考える)
-  // - $\w の文字は基本そのまま
+  // - [$A-Za-z0-9_] は基本そのまま(場合によりCapitalizeされる程度)
   // - - の文字は消し、その次の文字をCapitalizeする
   s = s.replaceAll(/-(.)/g, (_, c)=>capitalize(c));
-  // - 末尾が ! の場合それは消し、名前全体をCapitalizeした後に先頭に do をつける
-  s = s.replace(/^(.*)\!$/, (_, all)=>'do'+capitalize(all));
+  // - 末尾が ! の場合それは消す(jsに副作用の有無を気にする習慣はない。demangleは諦める)
+  s = s.replace(/^(.*)\!$/, (_, all)=>all);
   // - 末尾が ? の場合それは消し、名前全体をCapitalizeした後に先頭に is をつける
   s = s.replace(/^(.*)\?$/, (_, all)=>'is'+capitalize(all));
   // - 上記以外の記号はmangleTableで変換する。
