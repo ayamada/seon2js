@@ -130,6 +130,14 @@
     // TODO: 現状は未対応
     return C([S('s2/quote'), struct]);
   }")
+
+
+(defspecial s2/deref ; TODO: これは関数で提供した方がよい
+  "(expr) => {
+     return `(()=>{throw new Error('not implemented yet')})()`;
+   }")
+
+
 ;;; TODO
 ;;; defmacroの為に、以下の特殊シンボルの処理が必要
 ;;; - s2/quote - 普通のlispのquoteと同じ
@@ -138,7 +146,7 @@
 ;;; - s2/unquote-splicing - 専用のエラーを投げる関数を定義(本来の目的はquasiquoteが全て面倒を見る)
 ;;; - s2/deref - 特定のディスパッチテーブルを見る、専用の関数を定義
 ;;; unquote, unquote-splicing, deref は「関数」が必要で、
-;;; つまり本来であれば *.seon ソースでの提供が必要。
+;;; つまり本来であれば *.s2mjs ソースでの提供が必要。
 ;;; しかし今のところ「システムライブラリ」の提供方法が未定。
 ;;; defmacro含め、他の部分の実装が進んでからの対応とする
 
@@ -171,14 +179,13 @@
 ;;; (fn symbol [arg1 arg2 arg3] expr1 expr2 expr3)
 ;;; ↓
 ;;; function symbol (arg1, arg2, arg3) { expr1; expr2; return expr3 }
-;;; TODO: 現バージョンのgccはfunction(){}を()=>{}形式にminifyしてくれない！自前で()=>{}展開するとサイズ最適化できる({}なしにできると最高だが、{}ありでも小さくはなる)。あとでサイズ最適化をもっと考える(でも今は動作の方を最優先)
 (defspecial fn "makeFn()")
-(defspecial function "makeFn()")
+(defspecial function "makeFn()") ; makeFn()はjsのfunctionとは違うIFなので、これは廃止した方がいい
 (defspecial fn-async "makeFn('async')")
-(defspecial constfn
+(defspecial const-fn
   ;; fnの引数はsymbolが入るか入らないかの差があるのでparseが案外難しい
   "(symbol, ... fnargs) => C([S('const'), symbol, [S('fn'), ... fnargs]])")
-(defspecial constfn-async
+(defspecial const-async-fn
   ;; fnの引数はsymbolが入るか入らないかの差があるのでparseが案外難しい
   "(symbol, ... fnargs) => C([S('const'), symbol, [S('fn-async'), ... fnargs]])")
 
@@ -192,18 +199,18 @@
 (defspecial export-const
   "(... args) => C([S('export'), [S('const'), ... args]])")
 
-(defspecial export-constfn
-  "(... args) => C([S('export'), [S('constfn'), ... args]])")
+(defspecial export-const-fn
+  "(... args) => C([S('export'), [S('const-fn'), ... args]])")
 
-(defspecial export-constfn-async
-  "(... args) => C([S('export'), [S('constfn-async'), ... args]])")
+(defspecial export-const-async-fn
+  "(... args) => C([S('export'), [S('const-async-fn'), ... args]])")
 
 
 ;;; s2-export系はexportと同時にs2exportTableに登録する
 (defspecial s2-export-const
   "(... args) => (s2exportTable[args[0]]=1, C([S('export-const'), ... args]))")
-(defspecial s2-export-constfn
-  "(... args) => (s2exportTable[args[0]]=1, C([S('export-constfn'), ... args]))")
+(defspecial s2-export-const-fn
+  "(... args) => (s2exportTable[args[0]]=1, C([S('export-const-fn'), ... args]))")
 
 
 (defspecial definfix "(symbol, delimiter) => C([S('defspecial'), symbol, `(... args) => ('(' + args.map(C).join(')${delimiter}(') + ')')`])")
@@ -214,7 +221,6 @@
 (definfix or* "??") ; TODO: もっといい名前にしたいが…。なお現在の仕様上ではこの名前を ?? そのままにする事はできない
 (definfix2 set! "=")
 
-;;; NB: 以下はfnの方にも定義してあるので、修正する場合は連動させる事
 (definfix2 === "===")
 (definfix2 == "==")
 ;;; NB: = は封印する(jsの=(set!相当)と、clojureの=と、どっちなのか混乱する為)
@@ -281,29 +287,29 @@
    }")
 
 
-(defspecial aget
-  "(a, b) => {
-     // NB: 関数版ならaもbも型が確定しているが、
-     //     マクロ版はexprやsymbolの場合がある。
-     //     この時は確定は諦めて関数版に展開するしかない。
-     //     ただ、aかbのどちらかがkeyword, 非saのstring, 数値、のいずれかなら
-     //     それはkey確定なので、このフェーズで展開できる。
-     if (isK(a)) {
-       return `(${C(b)}).${K2MN(a)}`;
-     } else if (isK(b)) {
-       return `(${C(a)}).${K2MN(b)}`;
-     } else if (isStringPure(a)) {
-       return `(${C(b)})[${JSONS(a)}]`;
-     } else if (isStringPure(b)) {
-       return `(${C(a)})[${JSONS(b)}]`;
-     } else if (isNonNegativeInteger(a)) {
-       return `(${C(b)})[${a}]`;
-     } else if (isNonNegativeInteger(b)) {
-       return `(${C(a)})[${b}]`;
-     } else {
-       return `aget(${C(a)}, ${C(b)})`;
-     }
-   }")
+;(defspecial aget
+;  "(a, b) => {
+;     // NB: 関数版ならaもbも型が確定しているが、
+;     //     マクロ版はexprやsymbolの場合がある。
+;     //     この時は確定は諦めて関数版に展開するしかない。
+;     //     ただ、aかbのどちらかがkeyword, 非saのstring, 数値、のいずれかなら
+;     //     それはkey確定なので、このフェーズで展開できる。
+;     if (isK(a)) {
+;       return `(${C(b)}).${K2MN(a)}`;
+;     } else if (isK(b)) {
+;       return `(${C(a)}).${K2MN(b)}`;
+;     } else if (isStringPure(a)) {
+;       return `(${C(b)})[${JSONS(a)}]`;
+;     } else if (isStringPure(b)) {
+;       return `(${C(a)})[${JSONS(b)}]`;
+;     } else if (isNonNegativeInteger(a)) {
+;       return `(${C(b)})[${a}]`;
+;     } else if (isNonNegativeInteger(b)) {
+;       return `(${C(a)})[${b}]`;
+;     } else {
+;       return `aget(${C(a)}, ${C(b)})`;
+;     }
+;   }")
 
 
 ;;; NB: (aget a b) のように、aとbの両方がsymbolの場合は上記の解決ができず、
@@ -345,5 +351,41 @@
      const stringifiedBody = bodies.map(C).join(';\\n');
      return `try { ${stringifiedBody} } ${stringifiedCatch} ${stringifiedFinally}`;
    }")
+
+
+
+
+;;; TODO: 以下は将来は関数で提供したい
+(defspecial array?
+  "(a) => `Array.isArray(${C(a)})`")
+;(defspecial vector? "(a) => ``") ; TODO: 今はs2.s2mjsで提供
+(defspecial object?
+  "(a) => `((${C(a)})?.constructor === Object)`")
+;;; NB: seon2jsでは、symbolやkeywordもstring判定になるので注意
+(defspecial string?
+  "(a) => `((${C(a)})?.constructor === String)`")
+(defspecial nully? ; nullかundefinedなら真
+  "(a) => `(${C(a)} == null)`")
+(defspecial <
+  "(a, b) => `(${C(a)} < ${C(b)})`")
+(defspecial <=
+  "(a, b) => `(${C(a)} <= ${C(b)})`")
+(defspecial >
+  "(a, b) => `(${C(a)} > ${C(b)})`")
+(defspecial >=
+  "(a, b) => `(${C(a)} >= ${C(b)})`")
+;;; array[i] のiの検査用
+;(defspecial non-negative-integer? "(a) => ``") ; TODO: 今はs2.s2mjsで提供
+
+;;; TODO: 以下の関数をdefspecialで定義したいが難しい(今はs2.s2mjsに残している)
+;;;       これらをきちんと実装するには「一度でも使われたら、衝突しない名前で先頭で関数定義し、その名前の関数を展開する」みたいにする必要がある。「衝突しない名前」は適当でも一応問題ないが、「一度でも使われたら」というのと「先頭で」というのが結構問題になり、考える必要がある…
+;(s2-export-const-fn vector? [a] (and (array? a) (rawjs "a['%V']")))
+;(s2-export-const-fn non-negative-integer? [a]
+;  (and (Number.isInteger a)
+;       (<= 0 a)))
+
+
+
+
 
 ;;; vim:set ft=clojure:

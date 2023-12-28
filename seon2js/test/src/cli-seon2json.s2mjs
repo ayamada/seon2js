@@ -11,13 +11,13 @@
 
 
 (export (const mkdirp-options {:recursive true :mode (rawjs "0o755")}))
-(constfn mkdirp [path] (fs.mkdirSync path mkdirp-options))
+(const-fn mkdirp [path] (fs.mkdirSync path mkdirp-options))
 ; = (const mkdirp (fn [path] (fs.mkdirSync path mkdirp-options)))
 ; = (const mkdirp (function [path] (fs.mkdirSync path mkdirp-options)))
 ;;; const mkdirp = (path) => fs.mkdirSync(path, {recursive: true, mode: 0o755});
 
 
-(constfn convert-seon-to-json [src-path dst-path]
+(const-fn convert-seon-to-json [src-path dst-path]
   (const seon-string (fs.readFileSync src-path "utf-8"))
   (const json-string
     (seon-util.convert-seon-string-to-json-string seon-string
@@ -33,7 +33,7 @@
 ;;; };
 
 
-(constfn exchange-ext [target-path new-ext]
+(const-fn exchange-ext [target-path new-ext]
   (const path-parsed (object ... (path.parse target-path)))
   (set! path-parsed.ext new-ext)
   (delete! path-parsed.base)
@@ -46,7 +46,7 @@
 ;;; };
 
 
-(constfn display-usage-and-exit []
+(const-fn display-usage-and-exit []
   (console.log
    "usage:
     node ./cli-seon2json.mjs path/to/src.seon path/to/dst.json")
@@ -58,7 +58,7 @@
 ;;; };
 
 
-(constfn main [src dst]
+(const-fn main [src dst]
   (when-not src
     (display-usage-and-exit))
   (when-not dst
@@ -83,8 +83,8 @@
 ;;; };
 
 
-(main (aget process.argv 2)
-      (aget process.argv 3))
+(main (lookup process.argv 2)
+      (lookup process.argv 3))
 ;;; main(process.argv[2], process.argv[3]);
 
 

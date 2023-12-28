@@ -18,6 +18,17 @@ And, if you want to supervise to change src files, add `--watch` option.
 
 ## ChangeLog
 
+- 1.0.0-ALPHA: 20231229
+    - Change naming rule of some special forms
+        - `constfn` -> `const-fn`
+        - `constfn-async` -> `const-async-fn`
+        - `export-constfn` -> `export-const-fn`
+        - `export-constfn-async` -> `export-const-async-fn`
+        - These get closer to js literal
+            - `(export-const-async-fn foo [] ...)` likes `export const foo = async () => ...;`
+    - Remove many fns in s2.s2mjs for future implementations
+    - Failed to transpile `example/game01/` now, but will repair in future
+
 - 0.1.2: 20231226
     - Bump up version of seon
     - Fix redundant error log
