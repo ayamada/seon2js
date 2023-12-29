@@ -50,6 +50,10 @@ but different below.
 
 ## ChangeLog
 
+- 0.3.1: 20231230
+    - `sym.kebab2camel` changes from `->` to `2`
+    - `sym.kebab2camel` changes from start letter as number, to prepend `x`
+
 - 0.3.0: 20231229
     - `sym.kebab2camel` changes from `foo!` to `foo`, not `doFoo` now
 

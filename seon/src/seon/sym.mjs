@@ -254,10 +254,14 @@ export const kebab2camel = (s) => {
   s = s.replace(/^(.*)\!$/, (_, all)=>all);
   // - 末尾が ? の場合それは消し、名前全体をCapitalizeした後に先頭に is をつける
   s = s.replace(/^(.*)\?$/, (_, all)=>'is'+capitalize(all));
+  // - -> は 2 にする(特殊ショートカット)
+  s = s.replaceAll(/\-\>/g, '2');
   // - 上記以外の記号はmangleTableで変換する。
   //   なお特例として ? はminifyに重要なので(`?.`の為)許可している。
   //   ただし上記の通り「末尾に付く ! と ?」は先に加工されているので要注意
   s = s.replaceAll(/([^$\w.?])/g, (c)=>(mangleTable[c]??c));
+  // - 上記の処理の結果として数値はじまりになっていた場合、先頭に文字をつけて数値はじまりを回避する
+  s = s.replace(/^\d/, 'x$&');
   return s;
 };
 export const symbol2mangledName = (s) => kebab2camel(symbol2string(s));
