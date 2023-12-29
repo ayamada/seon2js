@@ -18,7 +18,10 @@ And, if you want to supervise to change src files, add `--watch` option.
 
 ## ChangeLog (ALPHA)
 
-リリース時に消してまとめます
+正式リリース時に消してまとめます
+
+- 1.0.4-ALPHA: 20231230
+    - Bump up version of seon to 0.3.1
 
 - 1.0.3-ALPHA: 20231229
     - Rename `throw!` of fn to `throw-fn!`
