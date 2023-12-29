@@ -30,14 +30,19 @@
 
 
 (defstatement return)
+(defstatement return! "return")
 (defstatement new)
 (defstatement delete)
 (defstatement delete! "delete")
 (defstatement break)
+(defstatement break! "break")
 (defstatement continue)
+(defstatement continue! "continue")
 (defstatement await)
+(defstatement await! "await")
 (defstatement async)
-;;; (defstatement throw!) ; NB: これは関数の方のみ提供する事にした
+(defstatement throw)
+(defstatement throw! "throw")
 
 
 ;;; (import-*-as fs "node:fs")

@@ -1,4 +1,4 @@
-import { nil, doThrow, doThrowNewError, deref, isVector, isNonNegativeInteger } from "./seon2js/lang/v0/s2.mjs";
+import { nil, throwFn, throwNewError, deref, isVector, isNonNegativeInteger } from "./seon2js/lang/v0/s2.mjs";
 import { default as fs } from "node:fs";
 import { default as process } from "node:process";
 import { default as path } from "node:path";

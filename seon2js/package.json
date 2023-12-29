@@ -1,6 +1,6 @@
 {
   "name": "seon2js",
-  "version": "1.0.1-ALPHA",
+  "version": "1.0.3-ALPHA",
   "description": "transpile from seon to js",
   "homepage": "https://github.com/ayamada/seon2js",
   "private": false,
@@ -21,7 +21,7 @@
     "seon2js": "./cli-seon2js.mjs"
   },
   "dependencies": {
-    "seon": "0.2.0",
+    "seon": "0.3.0",
     "chokidar": "3.5.3"
   },
   "devDependencies": {

@@ -20,6 +20,12 @@ And, if you want to supervise to change src files, add `--watch` option.
 
 リリース時に消してまとめます
 
+- 1.0.3-ALPHA: 20231229
+    - Rename `throw!` of fn to `throw-fn!`
+
+- 1.0.2-ALPHA: 20231229
+    - Bump up version of seon to 0.3.0
+
 - 1.0.1-ALPHA: 20231229
     - Migrate seon-util/postwalk to seon-util/postwalkWithMeta
 

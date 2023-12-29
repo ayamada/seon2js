@@ -18,8 +18,8 @@
 (s2-export-const nil null)
 
 
-;;; NB: statement扱いではなく、expr扱いのthrowが必要
-(s2-export-const throw! (rawjs "function (exc) { throw exc }"))
+;;; NB: statement扱いではなく、expr扱いのthrowがあった方が便利
+(s2-export-const throw-fn! (rawjs "(exc) => { throw exc }"))
 (s2-export-const-fn throw-new-error! [msg]
   (throw! (new (Error msg))))
 
