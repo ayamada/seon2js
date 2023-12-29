@@ -256,6 +256,8 @@
 ;;; NB: ifの中にstatementを入れる事はできない
 (defspecial if
   "(expr1, expr2, expr3) => `(${C(expr1)}) ? (${C(expr2)}) : (${C(expr3)})`")
+(defspecial if-not
+  "(expr1, expr2, expr3) => `(${C(expr1)}) ? (${C(expr3)}) : (${C(expr2)})`")
 
 
 (defspecial cond

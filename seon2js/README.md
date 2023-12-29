@@ -20,6 +20,9 @@ And, if you want to supervise to change src files, add `--watch` option.
 
 正式リリース時に消してまとめます
 
+- 1.0.5-ALPHA: 20231230
+    - Add special-form `if-not`
+
 - 1.0.4-ALPHA: 20231230
     - Bump up version of seon to 0.3.1
 
