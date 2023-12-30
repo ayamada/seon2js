@@ -109,6 +109,7 @@ export const isKeyword = (saO) => (sa.sa2typeUnchecked(saO) === 'keyword');
 export const isSymbol = (saO) => (sa.sa2typeUnchecked(saO) === 'symbol');
 export const sk2stringUnchecked = (prefix, k) => {
   const stee = sa.parseUnchecked(k);
+  if (!stee) { return }
   const ns = stee[2];
   const name = stee[3];
   return prefix + ((ns?.length) ? (ns+'/'+name) : name);

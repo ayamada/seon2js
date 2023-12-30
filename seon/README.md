@@ -50,6 +50,9 @@ but different below.
 
 ## ChangeLog
 
+- 0.4.2: 20231231
+    - `sym.sk2stringUnchecked` returns undefined by received non-sa
+
 - 0.4.1: 20231231
     - Export `sk2stringUnchecked` by seon/sym
 
