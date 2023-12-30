@@ -107,7 +107,7 @@ export const referName = (saO) => {
 };
 export const isKeyword = (saO) => (sa.sa2typeUnchecked(saO) === 'keyword');
 export const isSymbol = (saO) => (sa.sa2typeUnchecked(saO) === 'symbol');
-const sk2stringUnchecked = (prefix, k) => {
+export const sk2stringUnchecked = (prefix, k) => {
   const stee = sa.parseUnchecked(k);
   const ns = stee[2];
   const name = stee[3];
