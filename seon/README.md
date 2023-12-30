@@ -50,6 +50,10 @@ but different below.
 
 ## ChangeLog
 
+- 0.4.0: 20231231
+    - Move out `kebab2camel` `symbol2mangledName` `keyword2mangledName`
+      from seon.sym to seon2js
+
 - 0.3.1: 20231230
     - `sym.kebab2camel` changes from `->` to `2`
     - `sym.kebab2camel` changes from start letter as number, to prepend `x`
