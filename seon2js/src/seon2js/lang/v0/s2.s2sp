@@ -26,7 +26,7 @@
 ;;; 一般的なstatementの定義に利用できる(つまり引数が0個もしくは1個のもの)。
 ;;; なお後続部が2個以上のもの(const等)については個別に設定する事。
 (defspecial defstatement
-  "(symbol, substitute=S2MN(symbol)) => C([S('defspecial'), symbol, `(expr) => (${JSONS(substitute)} + ((expr == null) ? '' : (' ' + C(expr))))`])")
+  "(symbol, substitute=S2MS(symbol)) => C([S('defspecial'), symbol, `(expr) => (${JSONS(substitute)} + ((expr == null) ? '' : (' ' + C(expr))))`])")
 
 
 (defstatement return)
@@ -53,7 +53,7 @@
     const fromString = isS(source) ? resolveSymbolToNamespace(source)
       : isStringPure(source) ? reformImportPath(source)
       : tnE(`invalid 'from' value ${source}`);
-    return `import * as ${S2MN(ns)} from ${JSONS(fromString)}`;
+    return `import * as ${S2MS(ns)} from ${JSONS(fromString)}`;
   }")
 
 
@@ -73,11 +73,11 @@
      if (isS(bindings)) { return C([S('import-*-as'), bindings, source]) }
      const bindingString = (bindings && bindings?.length) ? ('{ ' + bindings.map((b)=>{
        if (isS(b)) {
-         return S2MN(b);
+         return S2MS(b);
        } else if (isArray(b)) {
          const [origSym, as, newSym] = b;
          assert(as === K('as'));
-         return `${S2MN(origSym)} as ${S2MN(newSym)}`;
+         return `${S2MS(origSym)} as ${S2MS(newSym)}`;
        } else {
          tnE(`found unknown bindings ${JSONS(b)}`);
        }
@@ -103,7 +103,7 @@
      for (const k in definitionObject) {
        let v = definitionObject[k];
        // NB: vがnull, nil, undefinedのsymbolだった場合のみ特別扱いする
-       const stringifiedSymbolName = S2MN(v);
+       const stringifiedSymbolName = S2MS(v);
        if (({'null':1, 'nil':1, 'undefined':1})[stringifiedSymbolName ?? '']) { v = undefined }
        results.push(C([S('import'), k, v]));
      }
@@ -118,7 +118,7 @@
 (defspecial s2-import
   "(source) => {
     prepareS2exportTable();
-    const targets = Object.keys(s2exportTable).map(S2MN).join(', ');
+    const targets = Object.keys(s2exportTable).map(S2MS).join(', ');
     return `import { ${targets} } from ${JSONS(source)}`;
   }")
 
@@ -166,7 +166,7 @@
 (defspecial let
   "(symbol, expr) => {
      const tail = (expr === undefined) ? '' : ` = ${C(expr)}`;
-     return `let ${S2MN(symbol)}${tail}`;
+     return `let ${S2MS(symbol)}${tail}`;
    }")
 
 
@@ -174,7 +174,7 @@
 ;;; ↓
 ;;; const symbol = expr
 (defspecial const
-  "(symbol, expr) => `const ${S2MN(symbol)} = ${C(expr)}`")
+  "(symbol, expr) => `const ${S2MS(symbol)} = ${C(expr)}`")
 
 
 ;;; (fn [arg1 arg2 arg3] expr1 expr2 expr3)
@@ -302,9 +302,9 @@
 ;     //     ただ、aかbのどちらかがkeyword, 非saのstring, 数値、のいずれかなら
 ;     //     それはkey確定なので、このフェーズで展開できる。
 ;     if (isK(a)) {
-;       return `(${C(b)}).${K2MN(a)}`;
+;       return `(${C(b)}).${K2MS(a)}`;
 ;     } else if (isK(b)) {
-;       return `(${C(a)}).${K2MN(b)}`;
+;       return `(${C(a)}).${K2MS(b)}`;
 ;     } else if (isStringPure(a)) {
 ;       return `(${C(b)})[${JSONS(a)}]`;
 ;     } else if (isStringPure(b)) {

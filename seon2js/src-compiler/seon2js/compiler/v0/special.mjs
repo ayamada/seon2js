@@ -2,6 +2,7 @@ import * as sa from 'seon/sa';
 import * as sym from 'seon/sym';
 import * as seon from 'seon/seon';
 import * as seonUtil from 'seon/util';
+import * as mangle from './mangle.mjs';
 
 
 import { default as fs } from "node:fs";
@@ -22,7 +23,7 @@ const assert = (x) => (x || tnE('assertion failed'));
 
 
 const resolveSymbolToNamespace = (s) => {
-  let acc = sym.symbol2mangledName(s);
+  let acc = mangle.symbol2mangledString(s);
 
   tnE('niy'); // TODO: 実fsを参照し、対応するファイルを特定し、ベースファイルからの相対位置を算出しなくてはならない…
   // https://nodejs.org/api/path.html#pathrelativefrom-to を使う必要がある筈
@@ -55,7 +56,7 @@ const resetDefinitions = () => {
     // TODO: おそらく↑のevalをなしにはできない。ただeval用のnamespaceを分離する事は可能そうなので、それだけ対応する方向で考えたい(eval内の変数にはgccのmanglingがかけられないので、そこを退避する為にはeval用namespaceの分離は必須になる筈。ただ今のところはコンパイル部にはgccはかからないので問題はない…)
     defineSpecial(symbol, fn);
     currentEnv.vars[symbol] = definitions[symbol];
-    const name = sym.symbol2mangledName(symbol);
+    const name = mangle.symbol2mangledString(symbol);
     return `/* (defspecial ${name} ...) */`;
   });
 
@@ -68,7 +69,7 @@ const resetDefinitions = () => {
       content: bodies,
     };
     currentEnv.vars[symbol] = definitions[symbol];
-    const name = sym.symbol2mangledName(symbol);
+    const name = mangle.symbol2mangledString(symbol);
     return `/* (defmacro ${name} ...) */`;
   });
 
@@ -157,8 +158,9 @@ const prepareS2exportTable = () => {
 const S = sym.makeSymbol;
 const K = sym.makeKeyword;
 const C = (expr) => currentCompileOne(expr); // NB: currentCompileOne自体がletで書き変わるので、直代入できない事に注意
-const S2MN = sym.symbol2mangledName;
-const K2MN = sym.keyword2mangledName;
+const S2MS = mangle.symbol2mangledString;
+const K2MS = mangle.keyword2mangledString;
+const X2MS = mangle.x2mangledString;
 const isS = sym.isSymbol;
 const isK = sym.isKeyword;
 const isV = seon.isVector;
@@ -209,12 +211,12 @@ const stringifyBodies = (bodies, appendReturnIfPossible=undefined) => {
 // これ複雑なので、こっちで書いて名前で参照する形にする
 const makeFn = (prefix='') => (... args) => {
   const symbol = isS(args[0]) ? args[0] : undefined;
-  const stringifiedSymbol = symbol ? S2MN(symbol) : '';
+  const stringifiedSymbol = symbol ? S2MS(symbol) : '';
   const bindings = symbol ? args[1] : args[0];
   const bodies = symbol ? args.slice(2) : args.slice(1);
   // TODO: 引数デフォルト値指定((a, b=123)=>{})に対応するには？
   // TODO: 引数のdestructuring-bind((a, {b, c})=>{})に対応するには？
-  const stringifiedBindings = bindings.length ? bindings.map(S2MN).reverse().reduce((acc, s)=> (s === '...') ? `${s} ${acc}` : `${s}, ${acc}`) : '';
+  const stringifiedBindings = bindings.length ? bindings.map(S2MS).reverse().reduce((acc, s)=> (s === '...') ? `${s} ${acc}` : `${s}, ${acc}`) : '';
   const stringifiedBodies = stringifyBodies(bodies, 1);
   return (symbol == null) ? `(${prefix} (${stringifiedBindings}) => ${stringifiedBodies})`
     : `(${prefix} function ${stringifiedSymbol} (${stringifiedBindings}) ${stringifiedBodies})`;
