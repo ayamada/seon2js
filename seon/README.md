@@ -50,6 +50,9 @@ but different below.
 
 ## ChangeLog
 
+- 0.4.3: 20231231
+    - Change order of arguments of `sym.sk2stringUnchecked`
+
 - 0.4.2: 20231231
     - `sym.sk2stringUnchecked` returns undefined by received non-sa
 

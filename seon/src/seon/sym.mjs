@@ -107,7 +107,7 @@ export const referName = (saO) => {
 };
 export const isKeyword = (saO) => (sa.sa2typeUnchecked(saO) === 'keyword');
 export const isSymbol = (saO) => (sa.sa2typeUnchecked(saO) === 'symbol');
-export const sk2stringUnchecked = (prefix, k) => {
+export const sk2stringUnchecked = (k, prefix='') => {
   const stee = sa.parseUnchecked(k);
   if (!stee) { return }
   const ns = stee[2];
@@ -115,8 +115,8 @@ export const sk2stringUnchecked = (prefix, k) => {
   return prefix + ((ns?.length) ? (ns+'/'+name) : name);
 };
 // 対応物以外を渡すとnullyが返る仕様
-export const symbol2string = (k) => isSymbol(k) ? sk2stringUnchecked('', k) : undefined;
-export const keyword2string = (k) => isKeyword(k) ? sk2stringUnchecked(':', k) : undefined;
+export const symbol2string = (k) => isSymbol(k) ? sk2stringUnchecked(k) : undefined;
+export const keyword2string = (k) => isKeyword(k) ? sk2stringUnchecked(k, ':') : undefined;
 
 
 export const spawnWithAnotherType = (saO, newType) => {
@@ -212,7 +212,7 @@ export const sastring2string = (saO) => {
 // この関数はpostwalkとセットで使うのが普通(jsonの構造は大体深いので)
 export const sa2stringForJson = (o) => (
   isSastring(o) ? sastring2string(o)
-  : (isSymbol(o) || isKeyword(o)) ? sk2stringUnchecked('', o)
+  : (isSymbol(o) || isKeyword(o)) ? sk2stringUnchecked(o)
   : o);
 
 
