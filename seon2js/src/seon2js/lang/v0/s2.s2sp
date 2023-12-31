@@ -256,8 +256,8 @@
 ;;; NB: ifの中にstatementを入れる事はできない
 (defspecial if
   "(expr1, expr2, expr3) => {
-     const stringifiedExpr2 = stringifyBodies(expr2);
-     const stringifiedExpr3 = stringifyBodies(expr3);
+     const stringifiedExpr2 = stringifyBodies([expr2]);
+     const stringifiedExpr3 = stringifyBodies([expr3]);
      const isStatementSE2 = !stringifiedExpr2.indexOf('{');
      const isStatementSE3 = !stringifiedExpr3.indexOf('{');
      if (isStatementSE2 || isStatementSE3) {
