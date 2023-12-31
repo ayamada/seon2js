@@ -60,11 +60,11 @@ export const string2mangledString = (s) => {
   // - [$A-Za-z0-9_] は基本そのまま(場合によりCapitalizeされる程度)
   // - - の文字は消し、その次の文字をCapitalizeする
   s = s.replaceAll(/-(.)/g, (_, c)=>capitalize(c));
-  // - 末尾が ! の場合それは消す(jsに副作用の有無を気にする習慣はない。demangleは諦める)
-  s = s.replace(/^(.*)\!$/, (_, all)=>all);
+  // - 末尾が ! の場合それは消す(jsに副作用の有無を気にする習慣はない。demangleは諦める)(一文字だけの場合は例外で残す)
+  s = s.replace(/^(.+)\!$/, (_, all)=>all);
   // - 末尾が ? の場合それは消し、名前全体をCapitalizeした後に先頭に is をつける
   //   (ただしこの処理は.で分割される一番末尾にのみ適用する事)
-  s = s.replace(/^(.*)\?$/, (_, all)=> {
+  s = s.replace(/^(.+)\?$/, (_, all)=> {
     const parts = all.split('.');
     const last = parts.pop();
     parts.push('is'+capitalize(last));

@@ -230,10 +230,13 @@
 (definfix2 == "==")
 ;;; NB: = は封印する(jsの=(set!相当)と、clojureの=と、どっちなのか混乱する為)
 (defspecial = "(... _) => tnE('deprecated. should use === or set!')")
-(definfix2 not=== "!==") ; 同上
-(definfix2 not== "!=") ; 同上
-(definfix2 not= "!==") ; 同上
+(definfix2 not=== "!==")
+(definfix2 !== "!==")
+(definfix2 not== "!=")
+(definfix2 != "!=")
+(definfix2 not= "!==")
 (defspecial not "(expr) => `!(${C(expr)})`")
+(defspecial ! "(expr) => `!(${C(expr)})`")
 (definfix + "+")
 (defspecial str "(... args) => C([S('+'), '', ... args])")
 (definfix - "-")
