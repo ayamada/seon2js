@@ -20,6 +20,9 @@ And, if you want to supervise to change src files, add `--watch` option.
 
 正式リリース時に消してまとめます
 
+- 1.0.7-ALPHA: 20231231
+    - Mangle from `foo/bar?` to `foo.isBar`, not `isFoo.bar`
+
 - 1.0.6-ALPHA: 20231231
     - Bump up version of seon to 0.4.3
     - Migrate `mangle.mjs` from seon

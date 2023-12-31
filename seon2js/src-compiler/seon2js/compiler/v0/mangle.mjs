@@ -63,7 +63,13 @@ export const string2mangledString = (s) => {
   // - 末尾が ! の場合それは消す(jsに副作用の有無を気にする習慣はない。demangleは諦める)
   s = s.replace(/^(.*)\!$/, (_, all)=>all);
   // - 末尾が ? の場合それは消し、名前全体をCapitalizeした後に先頭に is をつける
-  s = s.replace(/^(.*)\?$/, (_, all)=>'is'+capitalize(all));
+  //   (ただしこの処理は.で分割される一番末尾にのみ適用する事)
+  s = s.replace(/^(.*)\?$/, (_, all)=> {
+    const parts = all.split('.');
+    const last = parts.pop();
+    parts.push('is'+capitalize(last));
+    return parts.join('.');
+  });
   // - -> は 2 にする(特殊ショートカット)
   s = s.replaceAll(/\-\>/g, '2');
   // - 上記以外の記号はmangleTableで変換する。
