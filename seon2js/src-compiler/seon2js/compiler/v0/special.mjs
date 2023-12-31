@@ -189,6 +189,8 @@ const isBeginStatement = (s) => (statementBeginningRe.test(s) || !s.indexOf('{')
 // - bodiesがstatementを含んでいるなら { aaa; bbb; ... } 形式で返す
 //   ↑の際にappendReturnIfPossibleが真なら、末尾のexprの前に return をつける
 //   (末尾がstatementだった場合はreturnをつけずにそのままにする)
+// この返り値の最初の文字が { かどうかで、結果がstatementかそれ以外かが分かる
+// (objectが返る場合は ({}) 表記になる)
 const stringifyBodies = (bodies, appendReturnIfPossible=undefined) => {
   if (!bodies.length) { return '{}' }
   const compiledBodies = bodies.map(C);

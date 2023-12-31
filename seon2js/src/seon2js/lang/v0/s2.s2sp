@@ -255,31 +255,46 @@
 
 ;;; NB: ifの中にstatementを入れる事はできない
 (defspecial if
-  "(expr1, expr2, expr3) => `(${C(expr1)}) ? (${C(expr2)}) : (${C(expr3)})`")
+  "(expr1, expr2, expr3) => {
+     const stringifiedExpr2 = stringifyBodies(expr2);
+     const stringifiedExpr3 = stringifyBodies(expr3);
+     const isStatementSE2 = !stringifiedExpr2.indexOf('{');
+     const isStatementSE3 = !stringifiedExpr3.indexOf('{');
+     if (isStatementSE2 || isStatementSE3) {
+       // jsのif文で返す(statement扱い)
+       const result2 = isStatementSE2 ? stringifiedExpr2 : ('{'+stringifiedExpr2+'}');
+       const result3 = isStatementSE3 ? stringifiedExpr3 : ('{'+stringifiedExpr3+'}');
+       return `if (${C(expr1)}) ${result2} else ${result3}`;
+     } else {
+       // jsの三項演算子で返す(expr扱い)
+       return `(${C(expr1)}) ? (${stringifiedExpr2}) : (${stringifiedExpr3})`;
+     }
+   }")
 (defspecial if-not
-  "(expr1, expr2, expr3) => `(${C(expr1)}) ? (${C(expr3)}) : (${C(expr2)})`")
+  "(expr, expr2, expr3) => C([S('if'), expr3, expr2])")
 
 
-(defspecial cond
-  ;; ifの連鎖に変換する(とても多くstackを消費する)
-  "(p, v, ... leftover) => C([S('if'), p, v, (leftover.length ? C([S('cond'), ... leftover]) : undefined)])")
+;;; TODO: 現状だとifが三項演算子展開の時にしか機能しない！もっとちゃんと実装する必要がある…
+;(defspecial cond
+;  ;; ifの連鎖に変換する(とても多くstackを消費する)
+;  "(p, v, ... leftover) => C([S('if'), p, v, (leftover.length ? C([S('cond'), ... leftover]) : undefined)])")
 
 ;;; NB: bodiesが全てexprなら、変形後もexprになる。
 ;;;     bodiesにstatementが一個でもあれば、変形後もstatementになる。
 ;;;     要注意！
 (defspecial when
-  "(expr, ... bodies) => {
+  "(pred, ... bodies) => {
      const stringifiedBodies = stringifyBodies(bodies);
      if (isBeginStatement(stringifiedBodies)) {
        // jsのif文で返す(statement扱い)
-       return `if (${C(expr)}) ${stringifiedBodies}`;
+       return `if (${C(pred)}) ${stringifiedBodies}`;
      } else {
-       // jsの三項演算子で返す(expr扱い)
-       return `((${C(expr)}) ? ${stringifiedBodies} : undefined)`;
+       // jsの&&で返す(pred扱い)。(when)自体の返り値は0や''になるケースがあるので要注意
+       return `((${C(pred)}) && ${stringifiedBodies})`;
      }
    }")
 (defspecial when-not
-  "(expr, ... bodies) => C([S('when'), [S('not'), expr], ... bodies])")
+  "(pred, ... bodies) => C([S('when'), [S('not'), pred], ... bodies])")
 
 
 ;;; NB: 以下はfnの方にも定義してあるので、修正する場合は連動させる事

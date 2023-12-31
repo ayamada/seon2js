@@ -20,6 +20,11 @@ And, if you want to supervise to change src files, add `--watch` option.
 
 正式リリース時に消してまとめます
 
+- 1.0.8-ALPHA: 20231231
+    - Expand 'if' more smart
+    - Expand 'when' more smart
+    - Kill 'cond' temporarily
+
 - 1.0.7-ALPHA: 20231231
     - Mangle from `foo/bar?` to `foo.isBar`, not `isFoo.bar`
 

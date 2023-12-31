@@ -14,5 +14,5 @@ const exchangeExt = ( (targetPath, newExt) => {const pathParsed = {... ((path.pa
 delete pathParsed.base;
 return (path.format)((pathParsed))});
 const displayUsageAndExit = ( () => ((console.log)(("usage:\n    node ./cli-seon2json.mjs path/to/src.seon path/to/dst.json")), (process.exit)((1))));
-const main = ( (src, dst) => (((!(src)) ? ((displayUsageAndExit)()) : undefined), ((!(dst)) ? ((dst)=((exchangeExt)((src), (".json"))), (((src)===(dst)) ? ((displayUsageAndExit)()) : undefined)) : undefined), ((!((fs.existsSync)((src)))) ? ((console.log)((("")+("src not found: ")+(src))), (process.exit)((1))) : undefined), (convertSeonToJson)((src), (dst))));
+const main = ( (src, dst) => (((!(src)) && ((displayUsageAndExit)())), ((!(dst)) && ((dst)=((exchangeExt)((src), (".json"))), (((src)===(dst)) && ((displayUsageAndExit)())))), ((!((fs.existsSync)((src)))) && ((console.log)((("")+("src not found: ")+(src))), (process.exit)((1)))), (convertSeonToJson)((src), (dst))));
 (main)(((process.argv)[2]), ((process.argv)[3]))
