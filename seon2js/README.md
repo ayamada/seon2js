@@ -20,6 +20,9 @@ And, if you want to supervise to change src files, add `--watch` option.
 
 正式リリース時に消してまとめます
 
+- 1.0.12-ALPHA: 20240102
+    - Apply mangle to keys of {}
+
 - 1.0.11-ALPHA: 20240101
     - Add special form `property`
 

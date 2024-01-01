@@ -274,7 +274,7 @@
      }
    }")
 (defspecial if-not
-  "(expr, expr2, expr3) => C([S('if'), expr3, expr2])")
+  "(expr1, expr2, expr3) => C([S('if'), expr1, expr3, expr2])")
 
 
 ;;; TODO: 現状だとifが三項演算子展開の時にしか機能しない！もっとちゃんと実装する必要がある…

@@ -95,14 +95,26 @@ export const compileObjectEntry = ([k, v]) => {
   if (k === tripleDotSymbol) {
     return `... (${vStr})`;
   } else {
+    // kをkStrに展開する。以下のようなケースがありえる
+    // - {"foo-bar?" 1} => {"foo-bar?": 1}
+    // - {:foo-bar? 1} => {isFooBar: 1}
+    // - {foo-bar? 1} => {isFooBar: 1}
+    // - {123 1} => エラー(文字列以外は不可)
+    // - {(str "a" "b") 1} => エラー(式は入れられない)
+    // - {:foo/bar 1} => エラー(ns部を含むのは不可)
+    // - {:foo???? 1} => エラー(末尾以外の?は不可)
+    // - {:foo.bar 1} => エラー(dotを含むのは不可)
+    // また、以下は動作はするものの、おそらく期待される挙動ではない
+    // - {null 1} => {null: 1}
+    // - {nil 1} => {nil: 1}
+    // - {true 1} => {true: 1}
     let kStr;
     if (sym.isSymbol(k) || sym.isKeyword(k)) {
-      // NB: ここをkebab2camelに通すか、そのままにするかは悩むところだが、
-      //     一旦そのままにして進める実装にしてみる事にした。
-      //     将来に変更する可能性はある
-      kStr = sym.sa2stringForJson(k);
+      kStr = mangle.x2mangledString(k);
       // プロパティ化できないなら例外を投げる。これが嫌なら文字列で指定する事
-      if (!(/^[$A-Za-z_][$\w]*$/).test(kStr)) { tnE(`cannot convert to property name: "${kStr}"`) }
+      if (!(/^[$A-Za-z_][$\w]*$/).test(kStr)) {
+        tnE(`cannot convert to property name: "${kStr}"`);
+      }
     } else if (sym.isSastring(k)) {
       kStr = JSON.stringify(sym.sastring2string(k));
     } else if (isStringOrSa(k)) {
