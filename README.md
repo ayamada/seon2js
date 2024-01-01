@@ -40,10 +40,11 @@
 - ビルド時の最適化フラグ実装(cli内コメント参照)
 - エラーログをもうちょっと整理したい(スタックトレースは必要なものだけ出したい)。これをするには自前でスタックトレース管理をするしかない？
 - clojureのvar的な何かを導入(namespaceなしsymbolを正しくresolveする為に必要)
+- gensym相当の提供(ファイル単体でuniqueなだけだと将来のホットリロード実装時に衝突してしまう。諦めてuuid4とかにするしかない？)
 - defmacro実装
 - repl実装
 - テスト完備
-- package.json参照機能の提供
+- npm-util.s2spの同梱
 - enumっぽい機能の提供
 - support to build in windows
 - support hot-reloading like shadow-cljs on browser
