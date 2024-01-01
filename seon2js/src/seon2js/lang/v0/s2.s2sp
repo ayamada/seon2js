@@ -348,6 +348,17 @@
   "(obj, prop) => `(${C(obj)})[${C(prop)}]`")
 
 
+;;; NB: foo[2] や foo['bar'] にしたい場合は上記lookupでよいが、
+;;;     foo().bar にしたい場合のものも用意する。
+;;; TODO: もっと良い名前はある？ない？
+;;; (property obj prop)
+;;; ↓
+;;; (obj).prop
+;;; propはkeywordもしくはsymbolで指定する事。
+(defspecial property
+  "(obj, prop) => `(${C(obj)}).${X2MS(prop)}`")
+
+
 ;;; (try
 ;;;   ...
 ;;;   (catch e
