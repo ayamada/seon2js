@@ -45,10 +45,20 @@ but different below.
 
 ## TODO
 
-- Writer function will provide in future, but not now.
+- Writer function will be provide in future, but not now.
 
 
 ## ChangeLog
+
+- 1.0.0: 20240103
+    - Breaking changes: `npx seon2json` mangles symbols and keywords now
+      (for example: `{:foo-bar? 1}` -> `{"isFooBar": 1}`)
+      If you don't want this, you should use string literal
+      (for example: `{"foo-bar?" 1}` -> `{"foo-bar?": 1}`)
+    - Migrate `seon/mangle` module from seon2js
+    - Hide error stacktrace of `npx seon2json`,
+      and display error stacktrace by `--show-error-stacktrace` option
+    - Display line number in message of object literal errors
 
 - 0.4.3: 20231231
     - Change order of arguments of `sym.sk2stringUnchecked`
