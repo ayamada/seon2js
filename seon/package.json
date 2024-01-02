@@ -25,7 +25,7 @@
     "chai": "^5.0.0"
   },
   "scripts": {
-    "update-package.json": "npx seon2json package.seon package.json",
+    "update-package.json": "npx seon2json package.seon",
     "test": "node test/index.mjs",
     "distclean": "rimraf node_modules package-lock.json"
   },
