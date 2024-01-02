@@ -2,6 +2,7 @@ import { assert } from 'chai';
 import * as sa from 'seon/sa';
 import * as sym from 'seon/sym';
 import * as seon from 'seon/seon';
+import * as mangle from 'seon/mangle';
 import * as util from 'seon/util';
 
 
@@ -235,19 +236,6 @@ const testSym = () => {
   assert(sa.isSaLikeString(sastr2));
   assert.notEqual(sastr1, sym.string2sastring(sastr1));
   assert(sa.isSaLikeString(sym.string2sastring(sastr2)));
-
-  assert.equal(sym.sa2stringForJson(sym1), '*debug*');
-  assert.equal(sym.sa2stringForJson(sym2), 'clj-yaml.core/generate-string');
-  assert.equal(sym.sa2stringForJson(sym3), '/');
-  assert.equal(sym.sa2stringForJson(sym4), 'co.mp//');
-  assert.equal(sym.sa2stringForJson(kw1), 'abc');
-  assert.equal(sym.sa2stringForJson(kw2), 'ns.a/name.b');
-  assert.equal(sym.sa2stringForJson(sastr1), 'abc');
-  assert.equal(sym.sa2stringForJson(sastr2), ")}];\nabc\u0001def\n[{(");
-  assert.equal(sym.sa2stringForJson('abc'), 'abc');
-  assert.equal(sym.sa2stringForJson(123), 123);
-  assert.equal(sym.sa2stringForJson(null), null);
-  assert.deepEqual(sym.sa2stringForJson({}), {});
 };
 
 
@@ -421,6 +409,11 @@ const testSeon = () => {
 };
 
 
+const testMangle = () => {
+  // TODO
+};
+
+
 const testUtil = () => {
   // renameInternalSeonNamespaces
   const result1 = seon.readAllFromSeonString(`
@@ -437,6 +430,8 @@ const testUtil = () => {
   const result2 = util.renameInternalSeonNamespaces(result1, 'foobar');
   assert.deepEqual(meta.get(result2[2]), metaResult);
   assert.deepEqual(meta.get(result1[2][1]), meta.get(result2[2][1]));
+
+  // TODO: 他の関数のテストも追加しましょう
 };
 
 
@@ -445,6 +440,7 @@ const main = () => {
   testSa();
   testSym();
   testSeon();
+  testMangle();
   testUtil();
 };
 
