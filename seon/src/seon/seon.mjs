@@ -591,10 +591,10 @@ const expandTot = (tot) => {
     return stack; // [] の時はvectorとして返す
   } else {
     const object = {};
-    if (stack.length % 2) { tnE(`found odd number of elements in object literal`, totHead) }
+    if (stack.length % 2) { tnEwTo(`found odd number of elements in object literal`, totHead) }
     while (stack.length) {
       const k = stack[0];
-      if (k?.constructor !== String) { tnE(`found non-string key in object literal`, totHead) }
+      if (k?.constructor !== String) { tnEwTo(`found non-string key in object literal`, totHead) }
       object[k] = stack[1];
       stack.splice(0, 2);
     }
@@ -619,6 +619,7 @@ export const readAllFromSeonString = (opts, seonString) => {
   seonState.filename = filename ?? '(unknown)';
   seonState.currentNamespace = currentNamespace ?? 'user';
   resetMetaMap();
+  // opts.currentNamespaceの正規性をチェック
   try {
     sym.makeSymbol(seonState.currentNamespace, 'test');
   } catch (e) {
