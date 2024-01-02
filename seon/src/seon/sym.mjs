@@ -204,15 +204,3 @@ export const sastring2string = (saO) => {
 };
 
 
-// json出力向けの関数。
-// - symbolはsymbol2stringと同じ処理をする
-// - keywordはkeyword2stringに近いが、先頭に `:` はつけない処理をする
-// - sastringはdecodeしたものを返す
-// - 上記のいずれでもなければ、元の値をそのまま返す
-// この関数はpostwalkとセットで使うのが普通(jsonの構造は大体深いので)
-export const sa2stringForJson = (o) => (
-  isSastring(o) ? sastring2string(o)
-  : (isSymbol(o) || isKeyword(o)) ? sk2stringUnchecked(o)
-  : o);
-
-

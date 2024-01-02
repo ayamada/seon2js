@@ -1,6 +1,7 @@
 import * as sa from './sa.mjs';
 import * as sym from './sym.mjs';
 import * as seon from './seon.mjs';
+import * as mangle from './mangle.mjs';
 
 
 const isArray = Array.isArray;
@@ -13,25 +14,19 @@ const kvs2obj = (kvs) => {
   }
   return o;
 };
-const postwalk = (tree, converter) => (seon.isVector(tree) ? seon.markAsVector(converter(tree.map((v)=>postwalk(v, converter))))
-  : isArray(tree) ? converter(tree.map((v)=>postwalk(v, converter)))
-  : isObject(tree) ? converter(kvs2obj(Object.keys(tree).flatMap((k)=>[converter(k), postwalk(tree[k], converter)])))
-  : converter(tree));
-
-
 export const postwalkWithMeta = (inputTree, converter) => {
   const metaMap = seon.getLastMetaMap();
   const migrateMeta = (src, dst) => {
     const m = metaMap.get(src);
     if (m !== undefined) { metaMap.set(dst, m) }
   };
-  const postwalk2 = (tree) => {
-    const result = seon.isVector(tree) ? seon.markAsVector(converter(tree.map(postwalk2)))
-      : isArray(tree) ? converter(tree.map(postwalk2))
+  const postwalk = (tree) => {
+    const result = seon.isVector(tree) ? seon.markAsVector(converter(tree.map(postwalk)))
+      : isArray(tree) ? converter(tree.map(postwalk))
       : isObject(tree) ? converter(kvs2obj(Object.keys(tree).flatMap((k)=> {
         const v = tree[k];
         const newK = converter(k);
-        const newV = postwalk2(v);
+        const newV = postwalk(v);
         migrateMeta(k, newK);
         migrateMeta(v, newV);
         return [newK, newV];
@@ -40,28 +35,37 @@ export const postwalkWithMeta = (inputTree, converter) => {
     migrateMeta(tree, result);
     return result;
   };
-  return postwalk2(inputTree);
+  return postwalk(inputTree);
 };
 
 
-// seon構造データをjson文字列に変換して返す。
-// symbolとkeywordとsastringを素の文字列に変換する必要がある。
-// (なぜなら、jsonファイルを出力するというのは大体
-// 他のjsライブラリ向けへの対応であり、その際にsaエンコードの
-// 文字列を出す事にメリットはほぼ無いので)
-// ただ、この際にkebab-caseも変換するかどうかは悩む…。
-// (jsの変数やプロパティなら変換した方がよいが、jsonの場合{}のkeyも必ず
-// 文字列でありkebab-caseのままの方がいいケースと半々ぐらいのように思える為)
-// なおjsonで扱えない要素があっても無視して続行する。
-// 正規表現は {} になってしまう。これについてはもう諦める…。
-// ただし true, false, nil, null のシンボルだけは対応する値に変換する。
-const symbolTable = kvs2obj([
+// json化の際に true, false, nil, null のシンボルだけは対応する値に変換する。
+// 値にnullyが含まれるので要注意(hasOwnPropertyを使い判定する必要がある)
+const symbol2jsonValue = kvs2obj([
   sym.makeSymbol('true'), true,
   sym.makeSymbol('false'), false,
   sym.makeSymbol('nil'), null,
   sym.makeSymbol('null'), null,
 ]);
-export const convertSeonStructToJsonString = (seonData) => JSON.stringify(postwalk(seonData, ((s) => (symbolTable[s] ?? sym.sa2stringForJson(s)))), null, 2);
+
+
+// 素のjson内にsaの提供するsymbolやkeywordを残すべきではない。
+// (なぜなら、jsonファイルを出力するというのは大体
+// 他のjsライブラリ向けへの対応であり、その際にsaエンコードの
+// 文字列を出す事にメリットはほぼ無いので)
+// なので、json中のsa値は変換する必要がある。
+const rewriteSaForJson = (v) => (
+  sym.isSymbol(v) ? (symbol2jsonValue.hasOwnProperty(v) ? symbol2jsonValue[v] : mangle.x2mangledString(v))
+  : sym.isKeyword(v) ? mangle.x2mangledString(v)
+  : sym.isSastring(v) ? sym.sastring2string(v)
+  // なおsa以外の、jsonで扱えない要素はそのままにして続行する。
+  // 正規表現等はJSON.stringifyにそのまま渡された結果 {} になってしまう。
+  // これについてはもう諦める…。
+  : v);
+
+
+// seon構造(read済)をjson文字列に変換して返す。
+export const convertSeonStructToJsonString = (seonData) => JSON.stringify(postwalkWithMeta(seonData, rewriteSaForJson), null, 2);
 
 
 // seon文字列をjson文字列に変換して返す。
