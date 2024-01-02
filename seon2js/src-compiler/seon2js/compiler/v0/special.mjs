@@ -2,7 +2,7 @@ import * as sa from 'seon/sa';
 import * as sym from 'seon/sym';
 import * as seon from 'seon/seon';
 import * as seonUtil from 'seon/util';
-import * as mangle from './mangle.mjs';
+import * as mangle from 'seon/mangle';
 
 
 import { default as fs } from "node:fs";

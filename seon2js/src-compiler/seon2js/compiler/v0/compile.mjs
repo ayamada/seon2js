@@ -1,8 +1,8 @@
 import * as sa from 'seon/sa';
 import * as sym from 'seon/sym';
 import * as seon from 'seon/seon';
+import * as mangle from 'seon/mangle';
 import * as special from './special.mjs';
-import * as mangle from './mangle.mjs';
 // ↑のバージョンを変える事で、envの初期状態を変えられるようにする
 // (出来の悪い過去のコードをまとめてdeprecatedにすると同時に、
 // 以前バージョンのseon向けコードも一応実行可能にする)
