@@ -135,31 +135,37 @@ const processFile = (config, srcPath, dstPath, isCheckMtime=false) => {
     }
   }
   const srcExt = path.extname(srcPath);
-  // TODO: switchではなく、srcExtToDstExtみたいにテーブル化した方がよい
-  switch (srcExt) {
-    // - json, js, mjs はそのままコピーする。ログも出す
-    case ".json":
-    case ".js":
-    case ".mjs":
-      console.log(`found "${srcPath}", copy to "${dstPath}"`);
-      copyFile(srcPath, dstPath);
-      break;
-    // - seon, s2js, s2mjs は変換してdstに吐く。ログも出す
-    case ".seon":
-      console.log(`found "${srcPath}", transpile to "${dstPath}"`);
-      convertSeonToJson(config, srcPath, dstPath);
-      break;
-    case ".s2js":
-    case ".s2mjs":
-      transpileSeonToJs(config, srcPath, dstPath);
-      break;
-    // - s2sp はdefspecial用ファイル、何もしないがログは出す
-    case ".s2sp":
-      console.log(`found special file "${srcPath}", but do nothing`);
-      break;
-    // - それ以外は何もしないが、ログは出す
-    default:
-      console.log(`found unknown file "${srcPath}", but do nothing`);
+  try {
+    // TODO: switchではなく、srcExtToDstExtみたいにテーブル化した方がよい
+    switch (srcExt) {
+      // - json, js, mjs はそのままコピーする。ログも出す
+      case ".json":
+      case ".js":
+      case ".mjs":
+        console.log(`found "${srcPath}", copy to "${dstPath}"`);
+        copyFile(srcPath, dstPath);
+        break;
+      // - seon, s2js, s2mjs は変換してdstに吐く。ログも出す
+      case ".seon":
+        console.log(`found "${srcPath}", transpile to "${dstPath}"`);
+        convertSeonToJson(config, srcPath, dstPath);
+        break;
+      case ".s2js":
+      case ".s2mjs":
+        transpileSeonToJs(config, srcPath, dstPath);
+        break;
+      // - s2sp はdefspecial用ファイル、何もしないがログは出す
+      case ".s2sp":
+        console.log(`found special file "${srcPath}", but do nothing`);
+        break;
+      // - それ以外は何もしないが、ログは出す
+      default:
+        console.log(`found unknown file "${srcPath}", but do nothing`);
+    }
+  } catch (e) {
+    const beeper = config.isBeepError ? "\u0007" : "";
+    console.log(`found "${srcPath}", but occur exception ${beeper}`);
+    console.log(e.stack);
   }
 };
 
@@ -219,12 +225,7 @@ const runWatch = (srcs, dst, config) => {
   });
   const updateFn = (srcPath) => {
     const dstPath = resolveDstPath(srcs, dst, srcPath);
-    try {
-      processFile(config, srcPath, dstPath);
-    } catch (e) {
-      console.log(`found "${srcPath}", but occur exception`);
-      console.log(e.stack);
-    }
+    processFile(config, srcPath, dstPath);
   };
   const unlinkFn = (srcPath) => {
     const dstPath = resolveDstPath(srcs, dst, srcPath);
@@ -243,40 +244,54 @@ const runWatch = (srcs, dst, config) => {
 
 const displayUsageAndExit = () => {
   console.log(`usage:
-    npx seon2js --srcDir path/to/src --srcDir more/src --srcDir another/src --dstDir path/to/html/dst [--watch]`);
+    npx seon2js
+      --srcDir path/to/src # specify source directories
+      --srcDir more/src # can specify multiple directories
+      --dstDir path/to/html/dst # output to one directory
+      [--watch] # start to supervise all srcDir and transpile
+      [--beep-error] # alert error with beep
+      [-h --help] # show help`);
   process.exit(1);
 };
 
 
+const parseOptions = {
+  allowPositionals: false,
+  options: {
+    "help": {
+      type: "boolean",
+      short: "h",
+    },
+    "srcDir": {
+      type: "string",
+      multiple: true,
+    },
+    "dstDir": {
+      type: "string",
+    },
+    "watch": {
+      type: "boolean",
+      //short: "w",
+    },
+    "beep-error": {
+      type: "boolean",
+      short: "b",
+    },
+    // TODO: 以下あたりの追加のスイッチが必要。いい名前を決める事
+    //       - debug除去フラグ
+    //       - assert除去フラグ
+    //       - const -> let 変換最適化フラグ
+    //       - prodフラグ(上記フラグをまとめてオンにするやつ)
+    //       - map生成フラグ
+    //       - 他には？
+    // TODO: 上記スイッチ実装後、忘れずにdisplayUsageAndExitとREADME内usageにも追記する事
+  }};
+
+
 const main = () => {
-  const cmdArgs = parseArgs({
-    allowPositionals: true,
-    options: {
-      "help": {
-        type: "boolean",
-        short: "h",
-      },
-      "srcDir": {
-        type: "string",
-        multiple: true,
-      },
-      "dstDir": {
-        type: "string",
-      },
-      "watch": {
-        type: "boolean",
-        //short: "w",
-      },
-      // TODO: 以下あたりの追加のスイッチが必要。いい名前を決める事
-      //       - debug除去フラグ
-      //       - assert除去フラグ
-      //       - const -> let 変換最適化フラグ
-      //       - prodフラグ(上記フラグをまとめてオンにするやつ)
-      //       - map生成フラグ
-      //       - 他には？
-      // TODO: 上記スイッチ実装後、忘れずにdisplayUsageAndExitとREADME内usageにも追記する事
-    }});
+  const cmdArgs = parseArgs(parseOptions);
   const { help, srcDir, dstDir, watch } = cmdArgs.values;
+  const isBeepError = cmdArgs.values['beep-error'];
   //const [foo, bar, baz] = cmdArgs.positionals;
   if (help) { displayUsageAndExit() }
   if (!srcDir) { displayUsageAndExit() }
@@ -296,7 +311,9 @@ const main = () => {
     srcDir,
     dstDir,
     seon2jsBaseDir,
-    // TODO: フラグ系もここに入れる必要がある
+    // フラグ系
+    isBeepError,
+    // TODO: フラグ追加していきましょう
   };
   mkdirp(dstDir);
   const runArgs = [srcDir, dstDir, config];
