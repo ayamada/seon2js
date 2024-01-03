@@ -23,11 +23,12 @@
            ;; For test
            "test"            "node test/index.mjs"
            "test-s2js-clean" "rimraf test/dst"
-           "test-s2js-once"  "npx seon2js --beep-error --srcDir test/src --dstDir test/dst"
-           "test-s2js-watch" "npx seon2js --beep-error --srcDir test/src --dstDir test/dst --watch"
+           "test-s2js-once"  "npx seon2js $npm_package_config_test_s2js_arguments"
+           "test-s2js-watch" "npx seon2js $npm_package_config_test_s2js_arguments --watch"
            ;; For internal develop
            "link-seon"  "cd ../seon && npm link"
            "link-all"   "npm run link-seon && npm link seon"
            "unlink-all" "npm unlink seon && npm rm -g seon"
            "distclean"  "rimraf node_modules package-lock.json"}
+ :config {:test {:s2js {:arguments "--beep-error --srcDir test/src --dstDir test/dst"}}}
  :license "Zlib"}
