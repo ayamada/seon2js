@@ -8,17 +8,24 @@ See https://github.com/ayamada/seon2js
 ## Usage
 
 ```sh
-npx seon2js --srcDir path/to/src --srcDir more/src --srcDir another/src --dstDir path/to/html/mjs
+npx seon2js --srcDir path/to/src --srcDir more/src --dstDir path/to/html/mjs
 ```
 
 To convert from all `*.s2mjs` and `*.s2js` files in srcDir, to dstDir.
 
-And, if you want to supervise to change src files, add `--watch` option.
+See `npx seon2js -h` for more information.
 
 
 ## ChangeLog (ALPHA)
 
 正式リリース時に消してまとめます
+
+- 1.1.0-ALPHA: 20240103
+    - Move out `mangle` module into seon
+    - Bump up version of seon to 1.0.0
+    - Hide error stacktrace of `npx seon2js`,
+      and display error stacktrace by `--show-error-stacktrace` option
+    - Add `--beep-error` option to `npx seon2js`
 
 - 1.0.12-ALPHA: 20240102
     - Apply mangle to keys of {}

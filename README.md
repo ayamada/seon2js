@@ -36,18 +36,20 @@
 ## TODO
 
 - specialやmacroの展開時に、エラー行を正しく出せるよう、参照元オブジェクトをスタックで管理する必要がある(metaを持っている参照元オブジェクトが出てくるまでスタックをなめられるようにしたい)
+- babashkaのbbみたいな、単独でスクリプト実行できるラッパーコマンドの提供
 - defspecialでよく必要になる「実体は関数だけれども、1回以上参照されている時だけファイル先頭で名前衝突を起こさない名前で関数定義し、その関数名で埋め込む」機能の実装
 - ビルド時の最適化フラグ実装(cli内コメント参照)
 - エラーログをもうちょっと整理したい(スタックトレースは必要なものだけ出したい)。これをするには自前でスタックトレース管理をするしかない？
 - clojureのvar的な何かを導入(namespaceなしsymbolを正しくresolveする為に必要)
 - gensym相当の提供(ファイル単体でuniqueなだけだと将来のホットリロード実装時に衝突してしまう。諦めてuuid4とかにするしかない？)
 - defmacro実装
+- npm-util.s2spの同梱
 - repl実装
 - テスト完備
-- npm-util.s2spの同梱
-- enumっぽい機能の提供
-- support to build in windows
+- オプショナルな静的型付け対応
+- セルフホスティング(このタイミングで綺麗に書き直すので、今は雑で構わない)
 - support hot-reloading like shadow-cljs on browser
+- support to build in windows
 - 諸々の英語化
 
 
