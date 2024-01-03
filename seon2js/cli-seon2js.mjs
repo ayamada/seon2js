@@ -165,7 +165,8 @@ const processFile = (config, srcPath, dstPath, isCheckMtime=false) => {
   } catch (e) {
     const beeper = config.isBeepError ? "\u0007" : "";
     console.log(`found "${srcPath}", but occur exception ${beeper}`);
-    console.log(e.stack);
+    if (config.isShowErrorStacktrace) { console.log(e) }
+    console.log("Error: " + e.message);
   }
 };
 
@@ -242,19 +243,6 @@ const runWatch = (srcs, dst, config) => {
 };
 
 
-const displayUsageAndExit = () => {
-  console.log(`usage:
-    npx seon2js
-      --srcDir path/to/src # specify source directories
-      --srcDir more/src # can specify multiple directories
-      --dstDir path/to/html/dst # output to one directory
-      [--watch] # start to supervise all srcDir and transpile
-      [--beep-error] # alert error with beep
-      [-h --help] # show help`);
-  process.exit(1);
-};
-
-
 const parseOptions = {
   allowPositionals: false,
   options: {
@@ -273,6 +261,10 @@ const parseOptions = {
       type: "boolean",
       //short: "w",
     },
+    "show-error-stacktrace": {
+      type: "boolean",
+      short: "s",
+    },
     "beep-error": {
       type: "boolean",
       short: "b",
@@ -284,14 +276,29 @@ const parseOptions = {
     //       - prodフラグ(上記フラグをまとめてオンにするやつ)
     //       - map生成フラグ
     //       - 他には？
-    // TODO: 上記スイッチ実装後、忘れずにdisplayUsageAndExitとREADME内usageにも追記する事
+    // TODO: 上記スイッチ追加後、忘れずにdisplayUsageAndExitにも追記する事！
   }};
+
+
+const displayUsageAndExit = () => {
+  console.log(`usage:
+    npx seon2js
+      --srcDir path/to/src # specify source directories
+      --srcDir more/src # can specify multiple directories
+      --dstDir path/to/html/dst # output to one directory
+      [--watch] # start to supervise all srcDir and transpile
+      [-b --beep-error] # alert error with beep
+      [-s --show-error-stacktrace] # display stacktrace on error (for debug)
+      [-h --help] # show help`);
+  process.exit(1);
+};
 
 
 const main = () => {
   const cmdArgs = parseArgs(parseOptions);
   const { help, srcDir, dstDir, watch } = cmdArgs.values;
   const isBeepError = cmdArgs.values['beep-error'];
+  const isShowErrorStacktrace = cmdArgs.values["show-error-stacktrace"];
   //const [foo, bar, baz] = cmdArgs.positionals;
   if (help) { displayUsageAndExit() }
   if (!srcDir) { displayUsageAndExit() }
@@ -313,6 +320,7 @@ const main = () => {
     seon2jsBaseDir,
     // フラグ系
     isBeepError,
+    isShowErrorStacktrace,
     // TODO: フラグ追加していきましょう
   };
   mkdirp(dstDir);
