@@ -38,9 +38,11 @@ const exchangeExt = (targetPath, newExt) => {
 
 const displayUsageAndExit = () => {
   console.log(`usage:
-    npx seon2json path/to/src.seon [path/to/result.json]
-      [-s --show-error-stacktrace] : display stacktrace on error (for debug)
-      [-h --help] : show help`);
+    npx seon2json
+      path/to/src.seon # specify input *.seon file
+      [path/to/result.json] # specify output file or determine automatically
+      [-s --show-error-stacktrace] # display stacktrace on error (for debug)
+      [-h --help] # show help`);
   process.exit(1);
 };
 
