@@ -20,6 +20,9 @@ See `npx seon2js -h` for more information.
 
 正式リリース時に消してまとめます
 
+- 1.1.1-ALPHA: 20240106
+    - Bump up version of seon to 1.0.1
+
 - 1.1.0-ALPHA: 20240103
     - Move out `mangle` module into seon
     - Bump up version of seon to 1.0.0
