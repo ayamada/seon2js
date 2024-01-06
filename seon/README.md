@@ -50,6 +50,9 @@ but different below.
 
 ## ChangeLog
 
+- 1.0.1: 20240106
+    - Correct to mangle from `->` to `2`
+
 - 1.0.0: 20240103
     - Breaking changes: `npx seon2json` mangles symbols and keywords now
       (for example: `{:foo-bar? 1}` -> `{"isFooBar": 1}`)

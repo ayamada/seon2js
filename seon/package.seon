@@ -1,7 +1,7 @@
 ;;; -*- mode: clojure; coding: utf-8; -*-
 ;;; vim:set ft=clojure:
 {:name "seon"
- :version "1.0.0" ; TODO: Bump up automatically
+ :version "1.0.1" ; TODO: Bump up automatically
  :description "reader for S-Expression-Object-Notation"
  :homepage "https://github.com/ayamada/seon2js"
  :private false

@@ -51,6 +51,8 @@ export const string2mangledString = (s) => {
   s = s.replace(/\/$/, '_SLASH_');
   // - 上記以外の / は . に置換する(将来はきちんとnsやvarの解決をする)(優先)
   s = s.replace("/", '.');
+  // - -> は 2 にする(特殊ショートカット)
+  s = s.replaceAll(/\-\>/g, '2');
   // - . は基本そのままにする(一部問題のあるケースはある。あとで考える)
   // - [$A-Za-z0-9_] は基本そのまま(場合によりCapitalizeされる程度)
   // - - の文字は消し、その次の文字をCapitalizeする
@@ -65,8 +67,6 @@ export const string2mangledString = (s) => {
     parts.push('is'+capitalize(last));
     return parts.join('.');
   });
-  // - -> は 2 にする(特殊ショートカット)
-  s = s.replaceAll(/\-\>/g, '2');
   // - 上記以外の記号はmangleTableで変換する。
   //   なお特例として ? はminifyに重要なので(`?.`の為)許可している。
   //   ただし上記の通り「末尾に付く ! と ?」は先に加工されているので要注意
