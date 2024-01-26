@@ -149,7 +149,10 @@ const compileExpr = (expr) => {
       tnEwL(e.message, expr);
     }
   }
-  // - carの中身がkeywordや[]や{}なら、clojureのようにagetを補完する
+  // TODO: clojureのように、carがdotはじまりのsymbolなら `(. obj prop)` に展開するようにしたい
+  // TODO: carの内容が[]、つまりexprが `([2] obj)` みたいな形式なら `obj[2]` に展開する
+  // TODO: agetは廃止予定( . と [] で再現できる為)
+  // - carの中身がkeywordや[]なら、clojureのようにagetを補完する
   if (isNeedComplementGet(car(expr))) {
     // metaも移行する必要がある
     const meta = currentEnv.metaMap.get(expr);

@@ -187,6 +187,7 @@
 (defspecial fn "makeFn()")
 (defspecial function "makeFn()") ; makeFn()はjsのfunctionとは違うIFなので、これは廃止した方がいい
 (defspecial fn-async "makeFn('async')")
+(defspecial async-fn "makeFn('async')")
 (defspecial const-fn
   ;; fnの引数はsymbolが入るか入らないかの差があるのでparseが案外難しい
   "(symbol, ... fnargs) => C([S('const'), symbol, [S('fn'), ... fnargs]])")
@@ -218,13 +219,17 @@
   "(... args) => (s2exportTable[args[0]]=1, C([S('export-const-fn'), ... args]))")
 
 
+;;; definfixは (+ 1 2 3) => (1 + 2 + 3) のように展開してよいもの。1個も可。
+;;; definfix2は (=== a b) => (a === b) のように2個限定のもの。注意！
 (defspecial definfix "(symbol, delimiter) => C([S('defspecial'), symbol, `(... args) => ('(' + args.map(C).join(')${delimiter}(') + ')')`])")
 (defspecial definfix2 "(symbol, delimiter) => C([S('defspecial'), symbol, `(a, b) => ('(' + C(a) + ')${delimiter}(' + C(b) + ')')`])")
 
 (definfix and "&&")
 (definfix or "||")
-(definfix or* "??") ; TODO: もっといい名前にしたいが…。なお現在の仕様上ではこの名前を ?? そのままにする事はできない
-(definfix2 set! "=")
+(definfix undefined-or "??")
+(definfix or* "??")
+(definfix ?? "??")
+(definfix set! "=") ; (set! a b 123) => (a = b = 123) が可能！
 
 (definfix2 === "===")
 (definfix2 == "==")
@@ -235,6 +240,8 @@
 (definfix2 not== "!=")
 (definfix2 != "!=")
 (definfix2 not= "!==")
+(definfix2 ** "**")
+(definfix2 pow "**")
 (defspecial not "(expr) => `!(${C(expr)})`")
 (defspecial ! "(expr) => `!(${C(expr)})`")
 (definfix + "+")
@@ -242,6 +249,45 @@
 (definfix - "-")
 (definfix * "*")
 (definfix / "/")
+(definfix2 % "%")
+(definfix2 rem "%")
+(definfix2 remainder "%")
+(defspecial inc0! "(expr) => `(++(${C(expr)}))`")
+(defspecial inc! "(expr) => `((${C(expr)})++)`")
+(defspecial ++ "(expr) => `((${C(expr)})++)`")
+(defspecial ++! "(expr) => `((${C(expr)})++)`")
+(defspecial dec0! "(expr) => `(--(${C(expr)}))`")
+(defspecial dec! "(expr) => `((${C(expr)})--)`")
+(defspecial -- "(expr) => `((${C(expr)})--)`")
+(defspecial --! "(expr) => `((${C(expr)})--)`")
+(defspecial sint32 "(expr) => `((${C(expr)})|0)`")
+(defspecial coerce-sint32 "(expr) => `((${C(expr)})|0)`")
+(definfix2 in "in")
+(definfix2 add! "+=")
+(definfix2 sub! "-=")
+(definfix2 mul! "*=")
+(definfix2 div! "/=")
+(definfix2 rem! "%=")
+(definfix2 and! "&&=")
+(definfix2 or! "||=")
+(definfix2 undefined-or! "??=")
+(definfix2 pow! "**=")
+
+
+;;; TODO: 以下を適切に定義する(あまり使わないから優先度低い)
+;;;       - void - 使った事ない。ていうかundefined書いてたらgccが勝手にvoid 0にしてくれる
+;;;       - typeof - 役に立たない！
+;;;       - instanceof - class使わないし、純Object判定とかはconstructor見るしかないので…
+;;;       - 以下はビット演算系。必要なタイミングが出てから用意する
+;;;       - ~ (sint32-not)
+;;;       - & | ^
+;;;       - &= |= ^=
+;;;       - << >> >>>
+;;;       - <<= >>= >>>=
+
+
+
+
 
 
 ;;; (do expr1 expr2 expr3)
@@ -312,35 +358,10 @@
    }")
 
 
-;(defspecial aget
-;  "(a, b) => {
-;     // NB: 関数版ならaもbも型が確定しているが、
-;     //     マクロ版はexprやsymbolの場合がある。
-;     //     この時は確定は諦めて関数版に展開するしかない。
-;     //     ただ、aかbのどちらかがkeyword, 非saのstring, 数値、のいずれかなら
-;     //     それはkey確定なので、このフェーズで展開できる。
-;     if (isK(a)) {
-;       return `(${C(b)}).${K2MS(a)}`;
-;     } else if (isK(b)) {
-;       return `(${C(a)}).${K2MS(b)}`;
-;     } else if (isStringPure(a)) {
-;       return `(${C(b)})[${JSONS(a)}]`;
-;     } else if (isStringPure(b)) {
-;       return `(${C(a)})[${JSONS(b)}]`;
-;     } else if (isNonNegativeInteger(a)) {
-;       return `(${C(b)})[${a}]`;
-;     } else if (isNonNegativeInteger(b)) {
-;       return `(${C(a)})[${b}]`;
-;     } else {
-;       return `aget(${C(a)}, ${C(b)})`;
-;     }
-;   }")
-
-
 ;;; NB: (aget a b) のように、aとbの両方がsymbolの場合は上記の解決ができず、
 ;;;     関数版agetに丸投げになってしまい、効率が落ちる。それが嫌なので結局、
 ;;;     foo[idx] に展開される専用のspecial-formを用意する事にした
-;;; TODO: もっと良い名前はある？ない？
+;;; TODO: 将来的にはこれは廃止される(将来実装予定の `([2] array)` の方が直感的な為)
 ;;; (lookup obj prop)
 ;;; ↓
 ;;; (obj)[prop]
@@ -351,11 +372,14 @@
 ;;; NB: foo[2] や foo['bar'] にしたい場合は上記lookupでよいが、
 ;;;     foo().bar にしたい場合のものも用意する。
 ;;; TODO: もっと良い名前はある？ない？
+;;;       cljのように . に割り当ててよいのでは？
 ;;; (property obj prop)
 ;;; ↓
 ;;; (obj).prop
 ;;; propはkeywordもしくはsymbolで指定する事。
 (defspecial property
+  "(obj, prop) => `(${C(obj)}).${X2MS(prop)}`")
+(defspecial .
   "(obj, prop) => `(${C(obj)}).${X2MS(prop)}`")
 
 
