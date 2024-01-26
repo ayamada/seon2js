@@ -367,6 +367,8 @@
 ;;; (obj)[prop]
 (defspecial lookup
   "(obj, prop) => `(${C(obj)})[${C(prop)}]`")
+(defspecial lookup-if-defined
+  "(obj, prop) => `(${C(obj)})?.[${C(prop)}]`")
 
 
 ;;; NB: foo[2] や foo['bar'] にしたい場合は上記lookupでよいが、
@@ -381,6 +383,34 @@
   "(obj, prop) => `(${C(obj)}).${X2MS(prop)}`")
 (defspecial .
   "(obj, prop) => `(${C(obj)}).${X2MS(prop)}`")
+(defspecial property-if-defined
+  "(obj, prop) => `(${C(obj)})?.${X2MS(prop)}`")
+(defspecial ?.
+  "(obj, prop) => `(${C(obj)})?.${X2MS(prop)}`")
+
+
+;;; (f arg1 arg2 arg3)
+;;; ↓
+;;; f(arg1, arg2, arg3)
+(defspecial funcall
+  "(f, ... args) => tnE('niy')") ;; TODO
+;;; (f arg1 arg2 arg3)
+;;; ↓
+;;; f?.(arg1, arg2, arg3)
+(defspecial funcall-if-defined
+  "(f, ... args) => tnE('niy')") ;; TODO
+;;; このapplyはclojure方式。引数の一番最後はlistで渡す必要がある。
+;;; また関数ではないので注意する事
+;;; (f arg1 arg2 arg3 [arg4 arg5 arg6])
+;;; ↓
+;;; f(arg1, arg2, arg3, arg4, arg5, arg6)
+(defspecial apply
+  "(f, ... all-args) => tnE('niy')") ;; TODO
+;;; (f arg1 arg2 arg3 [arg4 arg5 arg6])
+;;; ↓
+;;; f?.(arg1, arg2, arg3, arg4, arg5, arg6)
+(defspecial apply-if-defined
+  "(f, ... all-args) => tnE('niy')") ;; TODO
 
 
 ;;; (try
