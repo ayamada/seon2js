@@ -1,7 +1,7 @@
-import * as sa from './sa.mjs';
+import * as Sa from './sa.mjs';
 
 
-// seonで必要となるsymbol, keyword, 将来対応予定のsastring,
+// seonで必要となるsymbol, keyword, denotation, 将来対応予定のsastring,
 // それからおまけでnumberの処理を行うモジュール
 
 
@@ -11,15 +11,16 @@ const isStringOrSa = (s) => (s?.constructor === String);
 const tnE = (msg) => { throw new Error(msg) };
 
 
-sa.setSaTypeDefinitionTable({
-  // seon向けに以下の三つを初期提供する
+// TODO: 他にも任意のものを後から追加できるような仕組みがほしい
+Sa.setSaTypeDefinitionTable({
+  // seon向けに以下を初期提供する
   // NB: ここはgccにmanglingされると困るので、文字列で指定する事
   //     (content, encoder, decoderはmanglingされて正しいが、
   //     symbol, keyword, sastringはmanglingされると困る。ややっこしい…)
   'symbol': {},
   'keyword': {},
   'sastring': {content: {encoder: JSON.stringify, decoder: JSON.parse}},
-  // TODO: 後から他にも追加できるようにしておく
+  'denotation': {},
 });
 
 
@@ -31,7 +32,8 @@ const validNumberAndLeftoverRe = /^([-+]?\d+(?:\.\d+)?)(.*)$/s;
 // なおdotもseon2jsレベルでは制約をつけるが、seonレベルでは
 // 気にしなくてよい(もし不正だった際にエラーにするのはseon2js側の責務)
 // これはkeywordも同じ判定になる(先頭の `:` を除く)
-const validSymbolAndLeftoverRe = /^([-*+!?$%&=<>\/\w.]+)(.*)$/s;
+// TODO: | ~ ^ を許可するかはとても悩ましい(jsだと || ~ ^ がある)
+const validSymbolAndLeftoverRe = /^([-*+!?$%&=<>\/\w.|~^]+)(.*)$/s;
 
 
 // NB: 上記二つは「一連のソースファイルの先頭から切り出す」正規表現なので、
@@ -72,7 +74,7 @@ const makeKeywordOrSymbol = (type, arg1, arg2) => {
     }
   }
   // 利用可能な文字種のチェックを行い、saを生成して返す
-  return (isValidNamespaceString(namespace) && isValidNameString(name)) ? sa.makeUnchecked(type, namespace, name) : tnE(`invalid character found in ${type}: ${namespace} ${name}`);
+  return (isValidNamespaceString(namespace) && isValidNameString(name)) ? Sa.makeUnchecked(type, namespace, name) : tnE(`invalid character found in ${type}: ${namespace} ${name}`);
 }
 export const makeSymbol = (arg1, arg2=undefined) => makeKeywordOrSymbol('symbol', arg1, arg2);
 export const makeKeyword = (arg1, arg2=undefined) => makeKeywordOrSymbol('keyword', arg1, arg2);
@@ -89,7 +91,7 @@ const canReferNamespaceOrName = {
 };
 export const referNamespace = (saO) => {
   if (!isStringOrSa(saO)) { return }
-  const stee = sa.parseUnchecked(saO);
+  const stee = Sa.parseUnchecked(saO);
   if (!stee) { return }
   if (canReferNamespaceOrName[stee[1]]) {
     const v = stee[2];
@@ -98,17 +100,17 @@ export const referNamespace = (saO) => {
 };
 export const referName = (saO) => {
   if (!isStringOrSa(saO)) { return }
-  const stee = sa.parseUnchecked(saO);
+  const stee = Sa.parseUnchecked(saO);
   if (!stee) { return saO } // 非saの文字列の場合、referNameは元の文字列を返す
   if (canReferNamespaceOrName[stee[1]]) {
     const v = stee[3];
     if (v !== '') { return v }
   }
 };
-export const isKeyword = (saO) => (sa.sa2typeUnchecked(saO) === 'keyword');
-export const isSymbol = (saO) => (sa.sa2typeUnchecked(saO) === 'symbol');
+export const isKeyword = (saO) => (Sa.sa2typeUnchecked(saO) === 'keyword');
+export const isSymbol = (saO) => (Sa.sa2typeUnchecked(saO) === 'symbol');
 export const sk2stringUnchecked = (k, prefix='') => {
-  const stee = sa.parseUnchecked(k);
+  const stee = Sa.parseUnchecked(k);
   if (!stee) { return }
   const ns = stee[2];
   const name = stee[3];
@@ -120,27 +122,27 @@ export const keyword2string = (k) => isKeyword(k) ? sk2stringUnchecked(k, ':') :
 
 
 export const spawnWithAnotherType = (saO, newType) => {
-  if (!isStringOrSa(newType) || !sa.getSaTypeDefinitionTable()[newType]) {
+  if (!isStringOrSa(newType) || !Sa.getSaTypeDefinitionTable()[newType]) {
     tnE(`invalid type ${newType}`);
   }
-  const stee = sa.parseUnchecked(saO);
-  if (stee) { return sa.makeUnchecked(newType, stee[2], stee[3]) }
+  const stee = Sa.parseUnchecked(saO);
+  if (stee) { return Sa.makeUnchecked(newType, stee[2], stee[3]) }
   tnE(`cannot spawn from ${saO}`);
 };
 export const spawnWithAnotherNamespace = (saO, newNamespace) => {
   if (!isValidNamespaceString(newNamespace)) {
     tnE(`invalid namespace ${newNamespace}`);
   }
-  const stee = sa.parseUnchecked(saO);
-  if (stee) { return sa.makeUnchecked(stee[1], newNamespace, stee[3]) }
+  const stee = Sa.parseUnchecked(saO);
+  if (stee) { return Sa.makeUnchecked(stee[1], newNamespace, stee[3]) }
   tnE(`cannot spawn from ${saO}`);
 };
 export const spawnWithAnotherName = (saO, newName) => {
   if (!isValidNameString(newName)) {
     tnE(`invalid name ${newName}`);
   }
-  const stee = sa.parseUnchecked(saO);
-  if (stee) { return sa.makeUnchecked(stee[1], stee[2], newName) }
+  const stee = Sa.parseUnchecked(saO);
+  if (stee) { return Sa.makeUnchecked(stee[1], stee[2], newName) }
   tnE(`cannot spawn from ${saO}`);
 };
 
@@ -196,11 +198,16 @@ export const parseSymbolFromLeftover = (leftover) => {
 //     入ってくる事はまず不正な入力と見ていいと思う)
 //     どういう事なのか理解できた人は自己責任で使ってもよい。
 //     (string2sastringだけ使い、sastring2stringは封印するのがおすすめ)
-export const isSastring = (s) => (sa.sa2typeUnchecked(s) === 'sastring');
-export const string2sastring = (str) => sa.make('sastring', '', str);
+export const isSastring = (s) => (Sa.sa2typeUnchecked(s) === 'sastring');
+export const string2sastring = (str) => Sa.make('sastring', '', str);
 export const sastring2string = (saO) => {
-  const o = sa.parse(saO);
+  const o = Sa.parse(saO);
   if (o?.type === 'sastring') { return o.content }
 };
+
+
+// denotationは、要はInfinityやNaNみたいな用途の奴なので、
+// 生成と同一性判定さえできればよい。同一性判定は===でできるので生成のみ提供する
+export const makeDenotation = (id) => Sa.makeUnchecked('denotation', '', id);
 
 

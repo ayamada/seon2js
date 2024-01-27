@@ -1,7 +1,6 @@
-import * as sa from './sa.mjs';
-import * as sym from './sym.mjs';
-import * as seon from './seon.mjs';
-import * as mangle from './mangle.mjs';
+import * as Sym from './sym.mjs';
+import * as Seon from './seon.mjs';
+import * as Mangle from './mangle.mjs';
 
 
 const isArray = Array.isArray;
@@ -15,13 +14,13 @@ const kvs2obj = (kvs) => {
   return o;
 };
 export const postwalkWithMeta = (inputTree, converter) => {
-  const metaMap = seon.getLastMetaMap();
+  const metaMap = Seon.getLastMetaMap();
   const migrateMeta = (src, dst) => {
     const m = metaMap.get(src);
     if (m !== undefined) { metaMap.set(dst, m) }
   };
   const postwalk = (tree) => {
-    const result = seon.isVector(tree) ? seon.markAsVector(converter(tree.map(postwalk)))
+    const result = Seon.isVector(tree) ? Seon.markAsVector(converter(tree.map(postwalk)))
       : isArray(tree) ? converter(tree.map(postwalk))
       : isObject(tree) ? converter(kvs2obj(Object.keys(tree).flatMap((k)=> {
         const v = tree[k];
@@ -42,10 +41,10 @@ export const postwalkWithMeta = (inputTree, converter) => {
 // json化の際に true, false, nil, null のシンボルだけは対応する値に変換する。
 // 値にnullyが含まれるので要注意(hasOwnPropertyを使い判定する必要がある)
 const symbol2jsonValue = kvs2obj([
-  sym.makeSymbol('true'), true,
-  sym.makeSymbol('false'), false,
-  sym.makeSymbol('nil'), null,
-  sym.makeSymbol('null'), null,
+  Sym.makeSymbol('true'), true,
+  Sym.makeSymbol('false'), false,
+  Sym.makeSymbol('nil'), null,
+  Sym.makeSymbol('null'), null,
 ]);
 
 
@@ -55,22 +54,20 @@ const symbol2jsonValue = kvs2obj([
 // 文字列を出す事にメリットはほぼ無いので)
 // なので、json中のsa値は変換する必要がある。
 const rewriteSaForJson = (v) => (
-  sym.isSymbol(v) ? (symbol2jsonValue.hasOwnProperty(v) ? symbol2jsonValue[v] : mangle.x2mangledString(v))
-  : sym.isKeyword(v) ? mangle.x2mangledString(v)
-  : sym.isSastring(v) ? sym.sastring2string(v)
+  Sym.isSymbol(v) ? (symbol2jsonValue.hasOwnProperty(v) ? symbol2jsonValue[v] : Mangle.x2mangledString(v))
+  : Sym.isKeyword(v) ? Mangle.x2mangledString(v)
+  : Sym.isSastring(v) ? Sym.sastring2string(v)
   // なおsa以外の、jsonで扱えない要素はそのままにして続行する。
   // 正規表現等はJSON.stringifyにそのまま渡された結果 {} になってしまう。
   // これについてはもう諦める…。
   : v);
 
 
-// seon構造(read済)をjson文字列に変換して返す。
-export const convertSeonStructToJsonString = (seonData) => JSON.stringify(postwalkWithMeta(seonData, rewriteSaForJson), null, 2);
-
-
-// seon文字列をjson文字列に変換して返す。
-export const convertSeonStringToJsonString = (seonString, filename=undefined) => convertSeonStructToJsonString(seon.readFromSeonString({filename: filename}, seonString));
+export const convertSeonStringToJsonStruct = (seonString, filename=undefined) => {
+  const seonData = Seon.readFromSeonString({filename}, seonString);
+  return postwalkWithMeta(seonData, rewriteSaForJson);
+};
 
 
 // seon構造データをなめ、全内部symbolの内の %SEON 名前空間のrenameを行う
-export const renameInternalSeonNamespaces = (seonData, newNamespaceString) => postwalkWithMeta(seonData, (tree) => (sym.isSymbol(tree) && sym.referNamespace(tree) === '%SEON') ? sym.spawnWithAnotherNamespace(tree, newNamespaceString) : tree);
+export const renameInternalSeonNamespaces = (seonData, newNamespaceString) => postwalkWithMeta(seonData, (tree) => (Sym.isSymbol(tree) && Sym.referNamespace(tree) === '%SEON') ? Sym.spawnWithAnotherNamespace(tree, newNamespaceString) : tree);
