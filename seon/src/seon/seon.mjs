@@ -1,5 +1,4 @@
-import * as sa from './sa.mjs';
-import * as sym from './sym.mjs';
+import * as Sa from './sa.mjs';
 
 
 // SEON - S-Expression-Object-Notation - read engine for seon2js
@@ -39,20 +38,21 @@ import * as sym from './sym.mjs';
 //     束縛値に変換されるのかsymbolのままなのか曖昧で逆に扱いづらくなるので、
 //     symbolは禁止する事にした。柔軟にkeyを設定したい場合は、
 //     空の {} を生成し、その後にエントリ追加すればいい。
-//   - () と [] はどちらもjsのarrayに変換される。ただしseon2jsでは両者を
-//     区別したいので、 [] の方には追加propertyで `%V=1` が付与される。
-//     (vはvectorのv。つまりseonおよびseon2jsでは [] はvectorと呼ぶ)
-//     それ以外の区別はない。JSON.stringifyしても両者の区別はなくなる。
-//     この判別用に isVector() が提供される。
-//   - #"..." はclojure同様、正規表現に変換される。
-//     ただしこれはjson文字列化をサポートしていない。
-//     JSON.stringifyすると単なる空の {} になる。これはもう仕様として諦める。
-//   - #_ はclojure同様の「1要素コメント」だが、これがobjectかつ
-//     特定のkey(SEON名前空間を持つsymbol)を含んでいる場合は
-//     「readエンジンへのメタ指定」として解釈される。
+//   - () と [] と {} はいずれもjsのarrayに変換される。これらを区別する為に
+//     それぞれ以下の追加propertyが付与される。
+//     - () には `%L=1`
+//     - [] には `%V=1`
+//     - {} には `%O=1`
+//   - #"..." はclojure同様、正規表現に変換される
+//   - #_ はclojure同様の「1要素コメント」、兼、「readエンジンへのメタ指定」。
+//     #_ の後に指定keyを持つ{}を入れる事で、readエンジンの設定を行える。
+//     しかし設定項目は全て未実装。
 //   - #t #true #f #false #nil #null #inf #+inf #-inf #nan はquoteされていても
 //     jsの true false null Infinity -Infinity NaN に解決される。
-//     (symbolとしてのtrueやfalseはquoteできるが、#t類はquoteできない)
+//     (symbolとしてのtrueやfalseはquoteしてsymbolとして扱える)
+//     ただ、通常はsymbol版を使えばよいので、これを意識する必要は薄い。
+//     (これらが必要になるのは、special-formやmacro内などに限られる)
+//     なお実装上の理由で #undefined のみ提供されていないので注意。
 //   - 上記以外にも # はじまりの機能を好きに定義し直せる。
 //     これはディスパッチシンボルテーブルいじりによって提供される。
 // - readの実行後、別途metaMapが提供される。
@@ -60,70 +60,100 @@ import * as sym from './sym.mjs';
 //   keyとするMapで、そのvalueは { filename, lineNo, colNo } になっている。
 //   要はエラー時にソース行番号などを示す為の情報。
 //   マクロ展開などにより構造が変化する場合は、metaの引き継ぎを忘れるな！
+//   seon/utilにて、このmetaの引き継ぎを行いやすくする関数が提供されている。
 
 
-// seonの吐いたjs構造を評価するevalエンジンは、
-// 以下の特殊シンボルを処理する必要がある。
+// seonの吐いたjs構造を評価するevalエンジンは以下の特殊シンボルを処理する事。
+// seon/utilにて、これらの特殊シンボルの変換サポート関数が提供されている。
 // - %SEON/quote - 普通のlispのquoteと同じ
-// - %SEON/quasiquote - 同上。なおclojure型の動作を求められる可能性が高い
+// - %SEON/quasiquote - 同上
 // - %SEON/unquote - 同上
 // - %SEON/unquote-splicing - 同上
-// - %SEON/deref - これは基本的には関数扱いでよい(clojure由来)
+// - %SEON/deref - clojure由来。拡張可能な汎用関数を割り当てるとよい
 
 
 // 略語/内部構造メモ
 // - to: token-object。ソース文字列をtokenizeした各部分毎に生成される。
 //   実体は { category, content, lineNo, colNo } になる。
-//   contentに分割されたソース文字列の本体が入っている。
+//   ただしcategoryとcontentは省略されている場合あり。
+//   - lineNoおよびColNoは0はじまりではなく1はじまり！
 // - pp: parenthesis-pair。括弧対応。 () [] {} の三種。
 
 
 // 汎用ユーティリティ
-const car = (a) => a[0];
-const cdr = (a) => a.slice(1);
-const cadr = (a) => a[1];
 const isArray = Array.isArray;
-const isObject = (o) => (o?.constructor === Object);
 const isStringOrSa = (s) => (s?.constructor === String);
 const tnE = (msg) => { throw new Error(msg) };
-const assert = (x) => (x || tnE('assertion failed'));
-const tnEwTo = (msg, to) => tnE(`${msg} at line=${to.lineNo} col=${to.colNo} in filename=${seonState.filename}`);
+const tnEwTo = (msg, { lineNo, colNo }) => tnE(`${msg} at line=${lineNo} col=${colNo}`);
+
+
+// NB: これらはseonレベルではエラーチェックをしていない。その為、本来なら
+//     エラーとすべき「-1」や「::::」のようなsymbolやkeywordを作れてしまう。
+//     これらについては呼び出し元(seon2js)サイドでチェックする事。
+const makeSymbolOrKeyword = (type, symbolStr) => {
+  const [first, ... rest] = symbolStr.split('/');
+  return (first.length && rest.length) ? Sa.make(type, first, rest.join('/')) : Sa.make(type, '', symbolStr);
+};
+export const makeSymbol = (symbolStr) => makeSymbolOrKeyword('symbol', symbolStr);
+// NB: symbolStrにキーワード先頭の : は含めない事！注意！
+export const makeKeyword = (symbolStr) => makeSymbolOrKeyword('keyword', symbolStr);
+export const isSymbol = (o) => (Sa.sa2type(o) === 'symbol');
+export const isKeyword = (o) => (Sa.sa2type(o) === 'keyword');
+export const x2string = (s) => {
+  const parsed = Sa.parse(s);
+  if (!parsed) { return }
+  const [type, namespace, content] = parsed;
+  return (namespace === '') ? content : (namespace + '/' + content);
+};
+export const symbol2string = (s) => (isSymbol(s) ? x2string(s) : undefined);
+export const keyword2string = (s) => (isKeyword(s) ? x2string(s) : undefined);
+const emptyString2undefined = (s) => ((s === '') ? undefined : s);
+export const referNamespace = (s) => emptyString2undefined(Sa.sa2meta(s));
+export const referName = (s) => emptyString2undefined(Sa.sa2content(s));
+export const renameNamespace = (s, newNamespace) => {
+  const parsed = Sa.parse(s);
+  if (!parsed) { return }
+  const [type, , content] = parsed;
+  return Sa.make(type, newNamespace, content);
+};
+
+
+export const listMarkerKey = '%L';
+export const vectorMarkerKey = '%V';
+export const blockMarkerKey = '%B';
+export const isList = (a) => (isArray(a) && a[listMarkerKey]);
+export const isVector = (a) => (isArray(a) && a[vectorMarkerKey]);
+export const isBlock = (a) => (isArray(a) && a[blockMarkerKey]);
+export const markAsList = (a) => ((a[listMarkerKey] = 1), a);
+export const markAsVector = (a) => ((a[vectorMarkerKey] = 1), a);
+export const markAsBlock = (a) => ((a[blockMarkerKey] = 1), a);
+export const markAsList2 = (a) => ((a[listMarkerKey] = 2), a);
+export const markAsVector2 = (a) => ((a[vectorMarkerKey] = 2), a);
+export const markAsBlock2 = (a) => ((a[blockMarkerKey] = 2), a);
+// 上記種別を引き継がせる
+export const inheritMark = (oldArr, newArr) => {
+  (isList(oldArr) && (newArr[listMarkerKey] = oldArr[listMarkerKey]));
+  (isVector(oldArr) && (newArr[vectorMarkerKey] = oldArr[vectorMarkerKey]));
+  (isBlock(oldArr) && (newArr[blockMarkerKey] = oldArr[blockMarkerKey]));
+  return newArr;
+};
 
 
 // read毎のSEONの状態をここに持たせる。
-// 将来に拡張可能にする想定あり。
-// NB: ここはgcc対策不要(全てのアクセスがmanglingされる想定)
-const initialSeonState = Object.freeze({
-  //filename: undefined,
-  //currentNamespace: undefined,
-  dmz: {}, // 外部から任意の状態を保存する用。ここはmanglingされない想定！
+let seonState;
+const resetSeonState = () => (seonState = {
+  metaMap: new Map(),
 });
-let seonState = {};
-const resetSeonState = () => (seonState = { ... initialSeonState });
-export const getLastSeonState = () => seonState;
 
 
 // evalの際にエラー行番号などを表示させる為の
-// 「各array→{filename, lineNo, colNo}」のエントリを持つMapが
-// readの際に、自動的に生成される。これを参照できるやつ。
-// なおこれはread毎にresetされるので、read後はすぐに取得した方がよい。
-let metaMap;
-const resetMetaMap = () => (metaMap = new Map());
-export const getLastMetaMap = () => metaMap;
-const registerMetaOnce = (target, to) => (metaMap.get(target) || metaMap.set(target, {
-  // NB: ここはgcc対策不要(全てのアクセスがキーワード扱いになっている)
-  filename: seonState.filename,
-  lineNo: to.lineNo,
-  colNo: to.colNo,
-}));
-const unregisterMeta = (target) => metaMap.delete(target);
-const registerMeta = (target, to) => (unregisterMeta(target), registerMetaOnce(target, to));
-const referMeta = (target) => metaMap.get(target);
-
-
-// vector向けユーティリティ
-export const markAsVector = (a) => ((isArray(a) && (a['%V'] = 1)), a);
-export const isVector = (a) => (isArray(a) && a['%V']);
+// 「各node→{lineNo, colNo}」のエントリを持つMapが、readの際に、
+// 自動的に生成される。これを参照できるやつ。
+// なおこれはread毎に生成されるので、必要ならread後すぐに取得する事。
+export const getLastMetaMap = () => seonState?.metaMap;
+const referMeta = (entity) => seonState.metaMap.get(entity);
+const registerMeta = (entity, to) => seonState.metaMap.set(entity, { ... to });
+const unregisterMeta = (entity) => seonState.metaMap.delete(entity);
 
 
 // 文字列リテラル内で特別な変換が必要なエスケープ文字(の \ を抜いたもの)
@@ -133,6 +163,100 @@ const specialCharactersInStringLiteral = {
   "t": "\t",
   "r": "\r",
   "n": "\n",
+};
+
+
+// " はじまりの文字列から、seon文字列リテラル部分を読み取り、アンエスケープし、
+// その結果をtoおよび残り部分の情報として配列で返す。
+const parseString = (leftover, startLineNo, startColNo) => {
+  let isEscaping;
+  let result = '';
+  let lineNo = startLineNo;
+  let colNo = startColNo;
+  const throwError = () => tnEwTo(`invalid string (startLineNo=${startLineNo}, startColNo=${startColNo})`, { lineNo, colNo });
+  if (leftover[0] !== '"') { throwError() } // 先頭は必ず `"`
+  leftover = leftover.slice(1);
+  colNo++;
+  while (1) {
+    if (!leftover.length) { throwError() } // 文字列終了の `"` なしにファイル終端に到達した
+    const chr = leftover[0];
+    leftover = leftover.slice(1);
+    colNo++;
+    if (isEscaping) {
+      result += (specialCharactersInStringLiteral[chr] || chr);
+      isEscaping = false;
+    } else if (chr === '"') {
+      break;
+    } else if (chr === "\\") {
+      isEscaping = true;
+    } else if (chr === "\n") {
+      result += chr;
+      lineNo++;
+      colNo = 1;
+    } else {
+      result += chr;
+    }
+  }
+  // saとして解釈できる文字列を普通に与える事は許容しない
+  if (Sa.isSaLikeString(result)) { throwError() }
+  return [result, leftover, lineNo, colNo];
+};
+
+
+
+
+// 与えられた文字列を「comment」「string」「undigested」の三種にtokenizeする。
+// 「undigested」のものは後で更に細かくtokenizeする必要がある。
+// (disassembleUndigestedTokenObjectがそれを行う)
+// この結果は「tokenObjectの配列」として返される。
+const tokenizePhase1 = (leftover, startLineNo, startColNo) => {
+  const result = [];
+  let currentLineNo = startLineNo;
+  let currentColNo = startColNo;
+  let buf = '';
+
+  const commitBufAs = (category) => {
+    result.push({
+      category: category,
+      content: buf,
+      lineNo: startLineNo,
+      colNo: startColNo,
+    });
+    startLineNo = currentLineNo;
+    startColNo = currentColNo;
+    buf = '';
+  };
+  const commitBufAsUndigestedIfNotEmpty = () => (buf.length && commitBufAs('undigested'));
+  while (leftover.length) {
+    const peekedChr = leftover[0];
+    if (peekedChr === ';') {
+      commitBufAsUndigestedIfNotEmpty();
+      // ; コメントのparseを開始
+      const posOfLf = leftover.indexOf("\n");
+      buf = (posOfLf === -1) ? leftover : leftover.slice(0, posOfLf);
+      leftover = (posOfLf === -1) ? '' : leftover.slice(posOfLf + 1);
+      currentLineNo++;
+      currentColNo = 1;
+      commitBufAs('comment');
+    } else if (peekedChr === '"') {
+      commitBufAsUndigestedIfNotEmpty();
+      // " 文字列のparseを開始
+      [buf, leftover, currentLineNo, currentColNo] = parseString(leftover, currentLineNo, currentColNo);
+      commitBufAs('string');
+    } else {
+      // それ以外はundigestedとして蓄積
+      buf += peekedChr;
+      leftover = leftover.slice(1);
+      if (peekedChr === "\n") {
+        currentLineNo++;
+        currentColNo = 1;
+      } else {
+        currentColNo++;
+      }
+    }
+  }
+  commitBufAsUndigestedIfNotEmpty();
+  return result;
 };
 
 
@@ -148,17 +272,17 @@ const spaceCharacterDefinitionTable = {
 const specialCharacterDefinitionTable = {
   "'": '%SEON/quote',
   "`": '%SEON/quasiquote',
-  ",": '%SEON/unquote', // clojureとは割り当てが違うので注意
-  "@": '%SEON/deref', // unquoteと合わさってunquote-splicingになる。素でも関数として機能させてもよい(clojure由来)
-  '#': '%SEON/dispatch', // この後に来る要素によって挙動が変化する
+  ",": '%SEON/unquote', // clojureとは割り当てが違うので要注意
+  "@": '%SEON/deref', // unquoteと合わさってunquote-splicingにするか、素の関数
+  '#': '%SEON/dispatch', // 後続要素により挙動が変化する、カスタマイズ可能記号
   ":": '%SEON/keyword', // clojure由来。二個重ねるケースあり、注意
-  "^": '%SEON/reserved', // clojureのmetadataだが、seonでは予約語扱い
-  "\\": '%SEON/reserved', // clojureのcharacter literalだが、seonでは予約語扱い
-  "~": '%SEON/reserved', // clojureのunquoteだが、seonでは予約語扱い
-  // "%": undefined, // 普通にsymbol構築に使える文字
-  // "$": undefined, // 普通にsymbol構築に使える文字
-  // ".": undefined, // 普通にsymbol構築に使える文字。もしclojureのように特殊な処理をしたい場合はevalエンジン側で対応する事
-  // "/": undefined, // 普通にsymbol構築に使える文字だが、symbol/keywordのseparator文字でもある為、例外を投げる書式あり、要注意
+  "^": '%SEON/reserved', // clojureのmetadataだがseonでは予約語扱い
+  "\\": '%SEON/reserved', // clojureのcharacter literalだがseonでは予約語扱い
+  "~": '%SEON/reserved', // clojureのunquoteだがseonでは予約語扱い
+  // "%": undefined, // 普通にidentifier構築に使える文字
+  // "$": undefined, // 普通にidentifier構築に使える文字
+  // ".": undefined, // 普通にidentifier構築に使える文字
+  // "/": undefined, // 普通にidentifier構築に使える文字
 };
 
 
@@ -168,124 +292,7 @@ const ppOpenToCloseTable = {
   "{": "}",
   "[": "]",
 }
-const ppCloseToOpenTable = {
-  ")": "(",
-  "}": "{",
-  "]": "[",
-}
-
-
-// " はじまりの文字列から、seon文字列リテラル部分を読み取り、アンエスケープし、
-// その結果をtoとして返す。
-const parseString = (leftover, startLineNo, startColNo) => {
-  const throwError = () => tnEwTo('invalid string, starting', {
-    lineNo: startLineNo,
-    colNo: startColNo,
-  });
-  if (car(leftover) !== '"') { throwError() } // 先頭は必ず `"`
-  leftover = cdr(leftover);
-  let isEscaping;
-  let currentLineNo = startLineNo;
-  let currentColNo = startColNo+1;
-  let result = '';
-  while (1) {
-    if (!leftover.length) { throwError() } // 文字列終了の `"` なしにファイル終端に到達した
-    const chr = car(leftover);
-    currentColNo++;
-    leftover = cdr(leftover);
-    if (isEscaping) {
-      result += (specialCharactersInStringLiteral[chr] || chr);
-      isEscaping = false;
-    } else if (chr === '"') {
-      break;
-    } else if (chr === "\\") {
-      isEscaping = true;
-    } else if (chr === "\n") {
-      result += chr;
-      currentLineNo++;
-      currentColNo = 1;
-    } else {
-      result += chr;
-    }
-  }
-  // TODO: この段階でresultがsa.isSaLikeStringを満たすなら例外を投げるべきかも
-  //       (ユースケースがまだ不明なので、これはs2js完成後に再検討する)
-  return [result, leftover, currentLineNo, currentColNo];
-};
-
-
-// 与えられた文字列を「comment」「string」「undigested」の三種にtokenizeする。
-// 「undigested」のものは後で更に細かくtokenizeする事。
-// この結果は「tokenObjectの配列」として返される。
-const tokenizePhase1 = (leftover, startLineNo, startColNo) => {
-  let currentLineNo = startLineNo;
-  let currentColNo = startColNo;
-  let buf = '';
-  const result = [];
-  const commitBufAs = (category) => {
-    result.push({
-      category: category,
-      content: buf,
-      lineNo: startLineNo,
-      colNo: startColNo,
-    });
-    startLineNo = currentLineNo;
-    startColNo = currentColNo;
-    buf = '';
-  };
-  const commitBufAsUndigestedIfNotEmpty = () => {
-    if (buf.length) { commitBufAs('undigested') }
-  };
-  while (leftover.length) {
-    const peekedChr = car(leftover);
-    if (peekedChr === ';') {
-      commitBufAsUndigestedIfNotEmpty();
-      const i = leftover.indexOf("\n");
-      buf = (i === -1) ? leftover : leftover.slice(0, i);
-      leftover = (i === -1) ? '' : leftover.slice(i+1);
-      currentLineNo++;
-      currentColNo = 1;
-      commitBufAs('comment');
-    } else if (peekedChr === '"') {
-      commitBufAsUndigestedIfNotEmpty();
-      [buf, leftover, currentLineNo, currentColNo] = parseString(leftover, currentLineNo, currentColNo);
-      commitBufAs('string');
-    } else {
-      buf += peekedChr;
-      leftover = cdr(leftover);
-      if (peekedChr === "\n") {
-        currentLineNo++;
-        currentColNo = 1;
-      } else {
-        currentColNo++;
-      }
-    }
-  }
-  commitBufAsUndigestedIfNotEmpty();
-  return result;
-};
-
-
-const parseFromLeftover = (parser, leftover, lineNo, colNo) => {
-  try {
-    // parserの返す値についてはsymの方を参照だが、
-    // [parsed, newLeftover] の二値、もしくはnullyが返ってくる事になっている
-    const result = parser(leftover);
-    if (result) {
-      const [parsed, newLeftover] = result;
-      // NB: numberもsymbolも改行を含まないので、lineNoは変化しない
-      const newColNo = colNo + leftover.length - newLeftover.length;
-      return [parsed, newLeftover, lineNo, newColNo];
-    }
-  } catch (e) {
-    tnEwTo(e.message, {
-      lineNo: lineNo,
-      colNo: colNo,
-    });
-  }
-};
-const parseNumberFromLeftover = (leftover, lineNo, colNo) => parseFromLeftover(sym.parseNumberFromLeftover, leftover, lineNo, colNo);
-const parseSymbolFromLeftover = (leftover, lineNo, colNo) => parseFromLeftover(sym.parseSymbolFromLeftover, leftover, lineNo, colNo);
+const ppCloseToOpenTable = Object.fromEntries(Object.entries(ppOpenToCloseTable).map(([k, v])=>[v, k]));
 
 
 // disassembleの為に、各文字を大カテゴリで分類し直す
@@ -294,7 +301,7 @@ const expandForDC2C = (category, dt) => {
   for (const k in dt) { result[k] = category }
   return result;
 };
-const disassembleCharacter2category = {
+const disassembledCharacter2category = {
   ... expandForDC2C('space', spaceCharacterDefinitionTable),
   ... expandForDC2C('special', specialCharacterDefinitionTable),
   ... expandForDC2C('structure', ppOpenToCloseTable),
@@ -302,64 +309,98 @@ const disassembleCharacter2category = {
 };
 
 
+const parseFromLeftover = (parser, leftover, lineNo, colNo) => {
+  try {
+    // parserは [parsed, newLeftover] の二値、もしくはnullyを返す
+    const result = parser(leftover);
+    if (result) {
+      const [parsed, newLeftover] = result;
+      // NB: numberもsymbolも改行を含まないので、lineNoは変化しない！
+      const newColNo = colNo + leftover.length - newLeftover.length;
+      return [parsed, newLeftover, lineNo, newColNo];
+    }
+  } catch (e) {
+    tnEwTo(e.message, { lineNo, colNo });
+  }
+};
+const validNumberAndLeftoverRe = /^([-+]?\d+(?:\.\d+)?)(.*)$/s;
+const parseNumberFromLeftover = (leftover) => {
+  let matched = leftover.match(validNumberAndLeftoverRe);
+  if (matched) {
+    const numStr = matched[1].replace(/^\+/, '');
+    const newLeftover = matched[2];
+    try {
+      return [JSON.parse(numStr), newLeftover];
+    } catch (e) {
+      tnE(`invalid number literal ${numStr}`);
+    }
+  } else {
+    // js風のdotはじまり小数(`.1` 等)は禁止。
+    // 間違えやすそうなのでわざとここでマッチさせて例外を投げる
+    matched = leftover.match(/^([-+]?\.\d+)(.*)$/s);
+    if (matched) { tnE(`invalid number literal ${matched[1]}`) }
+  }
+};
+// NB: この正規表現は数値にもマッチする！先にparseNumberFromLeftoverを通す事！
+const validSymbolAndLeftoverRe = /^([-*+!?$%&=<>\/\w.|~^]+)(.*)$/s;
+const parseSymbolFromLeftover = (leftover) => {
+  const matched = leftover.match(validSymbolAndLeftoverRe);
+  if (matched) {
+    const [, symbolStr, newLeftover] = matched;
+    const newSymbol = makeSymbol(symbolStr);
+    return [newSymbol, newLeftover];
+  }
+};
+
+
 const disassembleUndigestedTokenObject = (to) => {
-  // ここの呼び出し元はflatMapなので、必ず「toのlist」を返す必要がある
+  // NB: ここの呼び出し元はflatMapなので、必ず「toのlist」を返す必要がある！
   if (to.category != 'undigested') { return [to] }
   const result = [];
   let leftover = to.content;
-  let currentLineNo = to.lineNo;
-  let currentColNo = to.colNo;
-  let tmpResult, _;
-  const commit = (category, content) => result.push({
-    category: category,
-    content: content,
-    lineNo: currentLineNo,
-    colNo: currentColNo,
-  });
+  let { lineNo, colNo } = to;
+  let category, content, tmp;
+  const commit = () => result.push({ category, content, lineNo, colNo });
   while (leftover.length) {
-    const peekedChr = car(leftover);
-    // NB: 数値は一部のリーダーマクロやシンボルと重なる為、最初に判定する
-    if (tmpResult = parseNumberFromLeftover(leftover, currentLineNo, currentColNo)) {
-      commit('number', car(tmpResult));
-      [_, leftover, currentLineNo, currentColNo] = tmpResult;
-    }
+    const peekedChr = leftover[0];
     // 括弧類および特殊記号を個別に分解する
-    else if (tmpResult = disassembleCharacter2category[peekedChr]) {
-      commit(tmpResult, peekedChr);
-      leftover = cdr(leftover);
+    if (category = disassembledCharacter2category[peekedChr]) {
+      content = peekedChr;
+      commit();
+      leftover = leftover.slice(1);
       if (peekedChr === "\n") {
-        currentLineNo++;
-        currentColNo = 1;
+        lineNo++;
+        colNo = 1;
       } else {
-        currentColNo++;
+        colNo++;
       }
     }
+    // NB: 数値は一部のシンボルと重なる為、先に判定する
+    else if (tmp = parseFromLeftover(parseNumberFromLeftover, leftover, lineNo, colNo)) {
+      [content, leftover, lineNo, colNo] = tmp;
+      category = 'number';
+      commit();
+    }
     // NB: シンボルは他と重なる為、最後に判定する
-    else if (tmpResult = parseSymbolFromLeftover(leftover, currentLineNo, currentColNo)) {
-      commit('symbol', car(tmpResult));
-      [_, leftover, currentLineNo, currentColNo] = tmpResult;
+    else if (tmp = parseFromLeftover(parseSymbolFromLeftover, leftover, lineNo, colNo)) {
+      [content, leftover, lineNo, colNo] = tmp;
+      category = 'symbol';
+      commit();
     } else {
       // asciiの制御コード範囲の文字が来た時や、
       // コメント/文字列でない位置にunicode文字があった場合にここに来る
-      tnEwTo(`invalid character found: "${peekedChr}"`, {
-        lineNo: currentLineNo,
-        colNo: currentColNo,
-      });
+      tnEwTo(`invalid character found: "${peekedChr}"`, { lineNo, colNo });
     }
   }
   return result;
 };
 
 
-// 判定の優先度の為、まずコメント、文字列、undigestedの三種に分離し、
-// その後にundigestedを完全に分解する、という二段処理にする必要がある
-const tokenize = (seonString) => tokenizePhase1(seonString, 1, 1).flatMap(disassembleUndigestedTokenObject);
-
-
-// atool = assembleTokenObjectsOnlyList Internal
-// TODO: スタックを消費しないよう組み直す必要がある(現状だと構造の入れ子が深い時にMaximum call stack size exceededが起こってしまう)
+// TODO: スタックを消費しないよう組み直した方がよい(現状だと構造の入れ子が深い時にMaximum call stack size exceededが起こってしまう)。とてもめんどい
+// _atooli : assembleTokenObjectsOnlyList Internal
 const _atooli = (tos, openTag, closeTag, startLine, startCol) => {
   const result = [];
+  const throwError = (to, found=undefined) => tnEwTo(`structure unmatched: started ${openTag ? JSON.stringify(openTag) : '(beginning)'} at ${startLine}:${startCol}, searching ${closeTag ? JSON.stringify(closeTag) : '(termination)'}, but found ${found || JSON.stringify(to.content)}`, to);
   while (tos.length) {
     const to = tos[0];
     tos = tos.slice(1);
@@ -368,38 +409,126 @@ const _atooli = (tos, openTag, closeTag, startLine, startCol) => {
       result.push(to);
       continue;
     }
-    // closeTagを発見したら、ここで結果を返す
-    if ((to.category === 'structure') && (closeTag === to.content)) {
+    // ここより下ではto.categoryは必ずstructureになる
+    // 自身のcloseTagを発見したら、ここで結果を返す
+    if (closeTag === to.content) {
       // 自身の結果に閉じタグを含めておく(外で種類に応じた処理を行う為)
-      result.push(to);
+      result.push(to)
       return [result, tos];
     }
     const newOpenTag = to.content;
     const newCloseTag = ppOpenToCloseTable[newOpenTag];
     // newCloseTagがない＝to.contentは不一致の閉じタグだった
-    if (!newCloseTag) {
-      tnE(`structure unmatched: started "${openTag}" at ${startLine}:${startCol}, searching "${closeTag}", but found "${to.content}"`);
-    }
-    // newCloseTagがある＝to.contentは新しい構造開始タグ。
-    // 再帰的に構造を生成する
+    if (!newCloseTag) { throwError(to) }
+    // newCloseTagがある＝to.contentは新しい構造開始タグ
     const [assembled, leftTos] = _atooli(tos, newOpenTag, newCloseTag, to.lineNo, to.colNo);
     // 子の先頭に開始タグを含めておく(外で種類に応じた処理を行う為)
     assembled.unshift(to);
     result.push(assembled);
     tos = leftTos;
   }
+  // 閉じタグが閉じないままtosを全消費するのはエラー
+  if (closeTag !== undefined) { throwError(tos[tos.length-1], '(termination)') }
   // 正常に最後まで処理できた
-  if (closeTag === '<EOF>') { return [result, tos] }
-  // 閉じタグで閉じてないのにtosを全消費するのはエラー
-  tnE(`structure unmatched: started "${openTag}" at ${startLine}:${startCol}, searching "${closeTag}", but not found`);
+  return [result, tos];
 };
 
 
 const assembleTokenObjectsOnlyList = (tos) => {
-  const [result, leftTos] = _atooli(tos, '<BOF>', '<EOF>', 1, 1);
-  assert(!leftTos.length);
-  return result;
+  const { lineNo, colNo } = tos[0];
+  return _atooli(tos, undefined, undefined, lineNo, colNo)[0];
 }
+
+
+// dispatch未対応メモ
+// - ## clojure's NaN, Inf, -Inf (他で対応済)
+// - #: clojure's record (対応なし予定)
+// - #' clojure's var (対応なし予定)
+// - #= deprecated clojure's eval (対応なし予定)
+// - #^ clojure's metadata (対応なし予定)
+// - #? clojure's reader-conditional (対応なし予定)
+// - #?@ clojure's reader-conditional-splicing (対応なし予定)
+let dispatcheeSymbolConvertTable = {};
+dispatcheeSymbolConvertTable[makeSymbol('t')] = true;
+dispatcheeSymbolConvertTable[makeSymbol('true')] = true;
+dispatcheeSymbolConvertTable[makeSymbol('f')] = false;
+dispatcheeSymbolConvertTable[makeSymbol('false')] = false;
+dispatcheeSymbolConvertTable[makeSymbol('nil')] = null;
+dispatcheeSymbolConvertTable[makeSymbol('null')] = null;
+//dispatcheeSymbolConvertTable[makeSymbol('undefined')] = undefined; // 非常に誤判定しやすい為、これの提供は行わない事になった
+dispatcheeSymbolConvertTable[makeSymbol('inf')] = Number.POSITIVE_INFINITY;
+dispatcheeSymbolConvertTable[makeSymbol('+inf')] = Number.POSITIVE_INFINITY;
+dispatcheeSymbolConvertTable[makeSymbol('-inf')] = Number.NEGATIVE_INFINITY;
+dispatcheeSymbolConvertTable[makeSymbol('nan')] = Number.NaN;
+dispatcheeSymbolConvertTable[makeSymbol('empty')] = Sa.make('denotation', '', 'empty'); // [1,,3] の空白を表現する為のdenotation
+// TODO: このdispatcheeSymbolConvertTableをいじれる手段を提供する
+
+
+const dispatcheeSymbolDiscard = makeSymbol('_');
+// NB: ※※※ここで構造を生成した場合は、忘れずにmetaMapに登録する事※※※
+// NB: この中でdispatch処理を行った場合はtruthyを返す事！
+//     (truthyを返さなかった場合、更に後続のdispatch処理がなされてしまい、
+//     最終的にはエラー扱いになる)
+// NB: 先頭ほど優先度が高い(先に実行される)
+const defaultDispatchFns = [
+  // #_ (discard one element)
+  (to, dispatchee, stack) => {
+    // この時のdispatcheeは _ だが、後続の数値やsymbolと結合し謎symbolに
+    // なってしまうケースが普通にある。それも含めて判定する必要がある。
+    if (symbol2string(dispatchee)?.indexOf('_') === 0) {
+      // dispatcheeが素の _ の場合は後続と結合していないので、
+      // 明示的に更に一個の要素を消す必要がある。
+      // (結合している場合に消さないといけないものは結合対象という事になり、
+      // その時は何もしなくてよい)
+      if (dispatchee === dispatcheeSymbolDiscard) {
+        const v = shiftStack(to, stack);
+        // TODO: 将来に #_{SEON/VER 12.3} のような、特定記法のobjectが
+        //       #_ によって読み飛ばされた際に、その内容を反映する機能を
+        //       追加する構想がある。ここに対応コードを入れる事になる。
+      }
+      return 1;
+    }
+  },
+  // #"..." (regexp)
+  (to, dispatchee, stack) => {
+    if (isStringOrSa(dispatchee) && !Sa.isSaLikeString(dispatchee)) {
+      stack.unshift(new RegExp(dispatchee));
+      return 1;
+    }
+  },
+  // #symbol系
+  (to, dispatchee, stack) => {
+    const v = dispatcheeSymbolConvertTable[dispatchee];
+    if (v !== undefined) {
+      stack.unshift(v);
+      return 1;
+    }
+  },
+  // #() #[] #{}
+  (to, dispatchee, stack) => {
+    if (isArray(dispatchee)) {
+      if (dispatchee[listMarkerKey]) {
+        dispatchee[listMarkerKey] = 2;
+      } else if (dispatchee[vectorMarkerKey]) {
+        dispatchee[vectorMarkerKey] = 2;
+      } else if (dispatchee[blockMarkerKey]) {
+        dispatchee[blockMarkerKey] = 2;
+      } else {
+        tnEwTo('not reached', to);
+      }
+      stack.unshift(dispatchee);
+      return 1;
+    }
+  },
+  // TODO: schemeの `#n=`, `#n#` (shared-structure)みたいな奴のサポート
+  //       - この仕様についてはSRFI-38を見る事
+  //         https://srfi.schemers.org/srfi-38/srfi-38.html
+  //       -  `#n#` の末尾 # が問題だが、末尾文字を変更して対応したい
+];
+
+
+// TODO: これを外部からいじれる方法を提供する
+let dispatchFns = defaultDispatchFns;
 
 
 const shiftStack = (to, stack) => {
@@ -408,109 +537,20 @@ const shiftStack = (to, stack) => {
 };
 
 
-// dispatch未対応メモ
-// - #() clojure's nameless function (TODO: そのうち対応予定)
-// - ## clojure's NaN, Inf, -Inf (他で対応済)
-// - #! clojure's shebang line comment (対応なし予定)
-// - #: clojure's record (対応なし予定)
-// - #{} clojure's set (対応なし予定)
-// - #' clojure's var (対応なし予定)
-// - #= deprecated clojure's eval (対応なし予定)
-// - #^ clojure's metadata (対応なし予定)
-// - #? clojure's reader-conditional (対応なし予定)
-// - #?@ clojure's reader-conditional-splicing (対応なし予定)
-
-
-let dispatcheeSymbolConvertTable = {};
-dispatcheeSymbolConvertTable[sym.makeSymbol('t')] = true;
-dispatcheeSymbolConvertTable[sym.makeSymbol('true')] = true;
-dispatcheeSymbolConvertTable[sym.makeSymbol('f')] = false;
-dispatcheeSymbolConvertTable[sym.makeSymbol('false')] = false;
-dispatcheeSymbolConvertTable[sym.makeSymbol('nil')] = null;
-dispatcheeSymbolConvertTable[sym.makeSymbol('null')] = null;
-dispatcheeSymbolConvertTable[sym.makeSymbol('inf')] = Number.POSITIVE_INFINITY;
-dispatcheeSymbolConvertTable[sym.makeSymbol('+inf')] = Number.POSITIVE_INFINITY;
-dispatcheeSymbolConvertTable[sym.makeSymbol('-inf')] = Number.NEGATIVE_INFINITY;
-dispatcheeSymbolConvertTable[sym.makeSymbol('nan')] = Number.NaN;
-// TODO: このdispatcheeSymbolConvertTableをいじれる手段を提供する
-
-
-const dispatcheeSymbolDiscard = sym.makeSymbol('_');
-
-
-// NB: ※※※ここで構造を生成した場合は、忘れずにmetaMapに登録する事※※※
-// NB: この中でdispatch処理を行った場合はtruthyを返す事！
-//     (truthyを返さなかった場合、更に後続のdispatch処理がなされてしまい、
-//     最終的にはエラー扱いになる)
-const defaultDispatchFns = [
-  // #_ (discard one element)
-  (to, dispatchee, stack)=>{
-    // この時のdispatcheeは基本的には _ だが、
-    // 後続の数値やsymbolと結合してしまうケースがある。
-    // その場合も判定できなくてはならない。
-    if (sym.symbol2string(dispatchee)?.indexOf('_') === 0) {
-      // dispatcheeが素の _ の場合は後続と結合していないので、
-      // 明示的に更に一個の要素を消す必要がある。
-      // (結合している場合に消さないといけないものは結合対象という事になり、
-      // その時は何もしなくてよい)
-      if (dispatchee === dispatcheeSymbolDiscard) {
-        const v = shiftStack(to, stack);
-        // NB: 将来に #_{SEON/VER 12.3} のような、特定記法のobjectが
-        //     #_ によって読み飛ばされた際に、その内容をseonState.dmzに反映する
-        //     機能を追加する想定がある。ただこれがセキュリティ的に確実に安全か
-        //     どうかがいまいち不安なので、現段階では実装が見送られた。
-        //if (isObject(v)) {
-        //  for (const k in v) {
-        //    if (sym.isSymbol(k)) {
-        //      const ssvKey = resolveOverwritableSeonStateVendorKey(sym.symbol2string(k));
-        //      if (ssvKey) { seonState.dmz[ssvKey] = v[k] }
-        //    }
-        //  }
-        //}
-      }
-      return 1;
-    }
-  },
-  // #"..." (regexp)
-  (to, dispatchee, stack)=>{
-    if (isStringOrSa(dispatchee) && !sa.isSaLikeString(dispatchee)) {
-      stack.unshift(new RegExp(dispatchee));
-      return 1;
-    }
-  },
-  // #symbol系
-  (to, dispatchee, stack)=>{
-    const v = dispatcheeSymbolConvertTable[dispatchee];
-    if (v !== undefined) {
-      stack.unshift(v);
-      return 1;
-    }
-  },
-  // TODO: 無名関数対応。clojureの `#(...)` を `(fn [%] ...)` に展開するやつ
-  // TODO: schemeの `#n=`, `#n#` (shared-structure)みたいな奴のサポート
-  //       - この仕様についてはSRFI-38を見る事
-  //         https://srfi.schemers.org/srfi-38/srfi-38.html
-  //       -  `#n#` の末尾 # が問題だが、末尾文字を変更して対応したい
-  // TODO: bigint対応。まず先行文字だけ決めておきましょう
-];
-
-
-// TODO: これを外部からいじれる方法を提供する
-let dispatchFns = defaultDispatchFns;
-
-
+// stackから1要素を取り出し、対応するsymbolと一緒に括弧で囲み、stackに保存し直す
+// (例えば ' であれば、stackから1要素を抜き (%SEON/quote xxx) にして入れる)
 const specialCharacterStandardProcess = (to, stack) => {
   const specialType = specialCharacterDefinitionTable[to.content];
   const v = shiftStack(to, stack);
-  const list = [sym.makeSymbol(specialType), v];
-  registerMetaOnce(list, to);
+  const list = markAsList([makeSymbol(specialType), v]);
+  registerMeta(list, to);
   stack.unshift(list);
 };
 
 
-const derefSymbol = sym.makeSymbol('%SEON/deref');
-const unquoteSymbol = sym.makeSymbol('%SEON/unquote');
-const unquoteSplicingSymbol = sym.makeSymbol('%SEON/unquote-splicing');
+const derefSymbol = makeSymbol('%SEON/deref');
+const unquoteSymbol = makeSymbol('%SEON/unquote');
+const unquoteSplicingSymbol = makeSymbol('%SEON/unquote-splicing');
 
 
 // NB: ※※※ここで構造を生成した場合は、忘れずにmetaMapに登録する事※※※
@@ -520,11 +560,11 @@ const specialCharacterProcessTable = {
   '%SEON/unquote': (to, stack) => {
     const v = shiftStack(to, stack);
     // 通常は以下の変換だけですむが、
-    // - ,a => (unquote a)
-    // vが (%SEON/deref xxx) だった時は更に以下の変換をしなくてはならない
-    // - ,@a => ,(deref a) => (unquote (deref a)) => (unquote-splicing a)
-    const result = (isArray(v) && !isVector(v) && v.length && (car(v) === derefSymbol)) ? [unquoteSplicingSymbol, cadr(v)] : [unquoteSymbol, v];
-    registerMetaOnce(result, to);
+    // ,a => (unquote a)
+    // もしvが (%SEON/deref xxx) だった時は更に以下の変換をしなくてはならない
+    // ,@a => ,(deref a) => (unquote (deref a)) => (unquote-splicing a)
+    const result = markAsList((isArray(v) && !isVector(v) && v.length && (v[0] === derefSymbol)) ? [unquoteSplicingSymbol, v[1]] : [unquoteSymbol, v]);
+    registerMeta(result, to);
     stack.unshift(result);
   },
   '%SEON/deref': specialCharacterStandardProcess,
@@ -538,69 +578,65 @@ const specialCharacterProcessTable = {
   '%SEON/keyword': (to, stack) => {
     let k;
     const target = shiftStack(to, stack);
-    if (sym.isSymbol(target)) {
-      k = sym.spawnWithAnotherType(target, 'keyword');
-    } else if (sym.isKeyword(target)) {
-      // ::foo 形式への対応を行う。なお ::foo/bar はエラーとする
-      if (sym.referNamespace(target) != null) { tnEwTo(`invalid format "${to.content}"`, to) }
-      k = sym.makeKeyword(seonState.currentNamespace, sym.referName(target));
+    if (isSymbol(target)) {
+      k = Sa.make('keyword', ... (Sa.parse(target).slice(1)));
+    } else if (isKeyword(target)) {
+      // ::foo 形式だった。seonサイドでnamespace解決まで行いたくないので、
+      // 仮に %CURRENT というnamespaceを埋め込んでおく。
+      // これはseon2jsが %SEON をrenameするタイミングで同時に
+      // ファイル名に対応したnamespaceに変換してもらう。
+      // なお ::foo/bar 形式(aliased namespace)への対応は今は諦める。
+      k = renameNamespace(target, '%CURRENT');
     } else {
       tnEwTo(`invalid format "${to.content}"`, to);
     }
-    registerMetaOnce(k, to);
+    registerMeta(k, to);
     stack.unshift(k);
   },
-  '%SEON/reserved': (to, stack) => tnEwTo(`reserved character "${to.content}"`, to),
+  '%SEON/reserved': (to, stack) => tnEwTo(`found reserved character "${to.content}"`, to),
 };
 
 
-// TODO: スタックを消費しないよう組み直す必要がある(現状だと構造の入れ子が深い時にMaximum call stack size exceededが起こってしまう)
-const expandTot = (tot) => {
+// TODO: スタックを消費しないよう組み直した方がよい(現状だと構造の入れ子が深い時にMaximum call stack size exceededが起こってしまう)。とてもめんどい
+const expandTot = (tot, isTopLevel=undefined) => {
   const totHead = tot[0];
-  // 先頭と末尾は必ずstructureなので、除外する
-  const totContents = tot.slice(1, -1);
+  // 先頭と末尾のstructureタグを除去
+  const totContents = isTopLevel ? tot : tot.slice(1, -1);
   const stack = [];
   // special文字対応の為に、末尾から処理していく必要がある
   for (let i = totContents.length-1; 0 <= i; i--) {
     const to = totContents[i];
     if (Array.isArray(to)) {
+      // structureだった。先に再帰処理を行ってからstackに入れる
       stack.unshift(expandTot(to));
     } else if (to.category === 'special') {
+      // 特殊文字だった。それぞれの処理を行う
       const specialType = specialCharacterDefinitionTable[to.content];
       const specialProcessor = specialCharacterProcessTable[specialType];
       if (!specialProcessor) { tnEwTo(`unknown character "${to.content}"`, to) }
+      // 特殊文字はstackを変動させる場合が多い
       specialProcessor(to, stack);
     } else {
       // categoryがstring, number, symbolのいずれかだった
       const content = to.content;
-      // symbolはevalエンジン内で例外を投げる可能性がありmetaMap登録が必要
-      // (ただしmetaMapに登録できるsymbolは一つだけなので情報が不正確になる
-      // 可能性はある。ただ同じsymbolが何個あろうとどれか不正なら全部不正なので
-      // 例外を出す分には問題ない…)
-      if (sym.isSymbol(content)) { registerMetaOnce(content, to) }
+      // symbolはevalエンジン内で例外を投げる可能性がありmetaMap登録が必要！
+      // なお同じsymbolが複数ある場合でも、metaMapに登録できるsymbolは
+      // その内の一つだけなのでlineNoとcolNoは全部共通になる問題がある。
+      // しかし同じsymbolが何個あろうとそれが不正symbolなら全部不正symbolであり
+      // 例外を出す分には問題ない(全部直してもらうまでは例外を出すので)。
+      if (isSymbol(content)) { registerMeta(content, to) }
       stack.unshift(content);
     }
   }
-  // {} か [] か () かで処理が変動する
-  if (totHead.content === '(') {
-    registerMetaOnce(stack, totHead);
-    return stack; // () の時はarrayのまま返せる
-  } else if (totHead.content === '[') {
-    markAsVector(stack);
-    registerMetaOnce(stack, totHead);
-    return stack; // [] の時はvectorとして返す
-  } else {
-    const object = {};
-    if (stack.length % 2) { tnEwTo(`found odd number of elements in object literal`, totHead) }
-    while (stack.length) {
-      const k = stack[0];
-      if (k?.constructor !== String) { tnEwTo(`found non-string key in object literal`, totHead) }
-      object[k] = stack[1];
-      stack.splice(0, 2);
-    }
-    registerMetaOnce(object, totHead);
-    return object;
+  if (!isTopLevel) {
+    ({
+      '(': markAsList,
+      '[': markAsVector,
+      '{': markAsBlock,
+    })[totHead.content]?.(stack);
   }
+  registerMeta(stack, totHead);
+  return stack;
 };
 
 
@@ -608,59 +644,41 @@ const expandTot = (tot) => {
 // (もしこれを完全なlispコードとしたければ、この配列の先頭に `list` やら
 // `begin` やら `do` やら `progn` やらのシンボルを入れるべき。要注意！)
 // もし一個もS式に相当しなければ空配列が返る。
-export const readAllFromSeonString = (opts, seonString) => {
-  // opts指定なし対応
-  if (seonString == null) {
-    seonString = opts;
-    opts = {};
-  }
-  const { filename, currentNamespace } = opts;
+export const readAllFromSeonString = (seonString, opts={}) => {
   resetSeonState();
-  seonState.filename = filename ?? '(unknown)';
-  seonState.currentNamespace = currentNamespace ?? 'user';
-  resetMetaMap();
-  // opts.currentNamespaceの正規性をチェック
-  try {
-    sym.makeSymbol(seonState.currentNamespace, 'test');
-  } catch (e) {
-    tnE(`invalid namespace ${seonState.currentNamespace}`);
+  // readOneFromSeonStringにて、途中から再開する場合は
+  // offsetLineNo, offsetColNo を指定する事で行番号の辻褄を合わせられる
+  let { offsetLineNo=1, offsetColNo=1 } = opts;
+  // 先頭のみ #! の処理を特別に行う必要がある！
+  if ((offsetLineNo == 1) && (offsetLineNo == 1) && (!seonString.indexOf("#!"))) {
+    // 次の\nまで読み飛ばす
+    seonString = seonString.split("\n").slice(1).join("\n");
+    offsetLineNo++;
   }
-
-  const tosFull = tokenize(seonString);
-  // tokenize後、spaceおよびcommentを除去する
+  // 判定の優先度の為、まず;コメント、文字列、undigestedの三種に分離し、
+  // その後にundigestedを完全に分解する、という二段処理にする必要がある。
+  // (;コメントと文字列は、いわゆるS式構文に混ぜられない書式になっている為)
+  // tokenizePhase1が前者を行い、disassembleUndigestedTokenObjectが後者を行う。
+  const tosAll = tokenizePhase1(seonString, offsetLineNo, offsetColNo).flatMap(disassembleUndigestedTokenObject);
+  // tokenizePhase1後、spaceおよびcommentを除去する
   // (先にこれを行っておかないと、dispatch等の「次の要素に適用する」系の
   // リーダーマクロが面倒な事になる)
-  const tosFiltered = tosFull.filter((to)=>(to.category!='space')).filter((to)=>(to.category!='comment'));
+  const tosFiltered = tosAll.filter((to)=>!(({'space':1, 'comment':1})[to.category]));
+  if (!tosFiltered.length) { return [] }
   // []{}()をarray化する。相方チェックも兼ねている
   const tot = assembleTokenObjectsOnlyList(tosFiltered);
-  // トップレベルも配列として扱いたいので、先頭に `(` を、末尾に `)` を入れ、
-  // 正式な配列扱いにする。
-  // TODO: 先頭のシンボルが内部展開される%SEON系だった場合に問題になるが、
-  //       今は見逃す…将来に対応を考える
-  //       (おそらく tot.map(expandTot) みたいな事になる筈だが…)
-  tot.unshift({
-    category: 'structure',
-    content: '(',
-    lineNo: 0,
-    colNo: 0,
-  });
-  tot.push({
-    category: 'structure',
-    content: ')',
-  });
-  // 上記のtoを解除すると同時に、
-  // structure含むリーダーマクロ文字を式化すると同時に、
+  // structureやリーダーマクロ文字を式化すると同時に、
   // metaMapやseonStateの登録も行う
-  const exprs = expandTot(tot);
+  const exprs = expandTot(tot, 1);
   // まだ後処理が何か必要？
   return exprs;
 };
 
 
 // 文字列からS式を一個読み、それを返す。schemeのread的挙動。
-// これは `seon2json` の挙動に使われる。
-// TODO: 実装が冗長(二個目以降も全部parseしている)、しかし今は諦める
-export const readFromSeonString = (opts, s) => car(readAllFromSeonString(opts, s));
+// これは `seon2json` の挙動にも使われる。
+// TODO: 全部parseしてから最初の一個を返しているので効率が悪い。しかし動作には問題ないので対応優先度はとても低い
+export const readOneFromSeonString = (s, opts={}) => readAllFromSeonString(s, opts)[0];
 
 
 // TODO: write系の手続きも提供しましょう

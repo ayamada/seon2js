@@ -7,7 +7,6 @@ import Path from "node:path";
 import * as NodeUtil from "node:util";
 
 
-import * as Seon from "seon/seon";
 import * as SeonUtil from "seon/util";
 
 
@@ -31,7 +30,7 @@ const convertSeonToJson = (srcPath, dstPath, isShowErrorStacktrace, isRewritePat
   const seonString = Fs.readFileSync(srcPath, "utf-8");
   let jsonStruct;
   try {
-    jsonStruct = SeonUtil.convertSeonStringToJsonStruct(seonString, srcPath);
+    jsonStruct = SeonUtil.convertSeonStringToJsonStruct(seonString);
   } catch (e) {
     if (isShowErrorStacktrace) { console.log(e) }
     console.log("Error: " + e.message);

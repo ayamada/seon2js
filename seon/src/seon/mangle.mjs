@@ -1,4 +1,4 @@
-import * as Sym from "./sym.mjs"
+import * as Seon from "./seon.mjs"
 
 
 // clojureのmunge/demungeに近い処理を行うが、demunge相当は提供しない。
@@ -51,60 +51,47 @@ const capitalize = (s) => s.length ? (s[0].toUpperCase() + s.slice(1)) : s;
 // kebab->camelにも近いが、より特化した個別の変換処理を含んでいる。
 export const string2mangledString = (s) => {
   if (!isStringOrSa(s)) { return } // 文字列でないものは処理できない
-  // TODO: ここには普通に foo.bar.baz のようなシンボルが流れてくる事になった。という事は「先頭」「末尾」の判定はこのfoo bar bazそれぞれで行わないといけない！全体的に処理を考え直す必要がある…
-  // TODO
-  // TODO
-  // TODO
-  // TODO
-  // TODO
-  // TODO
-  // 末尾 / は特別扱い。 _SLASH_ に置換する(最優先)
-  s = s.replace(/\/$/, '_SLASH_');
-  // 上記以外の / は . に置換する(将来はきちんとnsやvarの解決をする)(優先)
-  s = s.replace("/", '.');
-  // -> は 2 にする(特殊ショートカット)
-  s = s.replaceAll(/\-\>/g, '2');
-  // . は基本そのままにする(ショートカット)
-  //
-  // ? も基本そのままにする(ショートカット)
-  // 以前のバージョンではis接頭辞に変換していたが、 foo?.bar みたいな
-  // ショートカットシンボルを扱えるようにした結果、意味のconflictが起こり
-  // 分かりづらくなってしまう為、isはisで示す事になった。間違わないようにする事
-  // (ただ、これ実は問題ないかもしれない…その場合は以下のコードを復活させる)
-  // s = s.replace(/^(.+)\?$/, (_, all)=> {
-  //   const parts = all.split('.');
-  //   const last = parts.pop();
-  //   parts.push('is'+capitalize(last));
-  //   return parts.join('.');
-  // });
-  //
-  // [$A-Za-z0-9_] は基本そのまま(Capitalizeされる等はある)
-  //
-  // - の文字は消し、その次の文字をCapitalizeする(先頭と末尾除く)
-  s = s.replaceAll(/(.)-(.)/g, (_, c1, c2)=>(c1+capitalize(c2)));
-  // 末尾が ! の場合それを消す。
-  // jsに副作用の有無を気にする習慣はないが、人間の為だけにこれを提供する。
-  // 例えばarray.sortはin place(副作用)動作なので、
-  // (array.sort!) と書けるとlisperにとっては非常に分かりやすい。
-  s = s.replace(/^(.+)\!$/, (_, all)=>all);
-  // 上記全ての処理後に残った記号はmangleTableで変換する。
-  // なお特例として . と ? は許可している事に要注意。
-  s = s.replaceAll(/([^$\w.?])/g, (c)=>(mangleTable[c]??c));
-  // 上記の処理の結果として万が一数値はじまりになっていた場合、
-  // 先頭に文字をつけて数値はじまりを回避する
-  s = s.replace(/^\d/, 'x$&');
+  // ■ 最初に出てきた / はnamespace区切り文字(ただし末尾でない事！)。
+  //    今は . に置換する(TODO: 将来はきちんとnsやvarの解決をする)
+  s = s.replace(/^([^\/]+)\/(.)/, "$1$2");
+  // ■ 例えば foo?.bar.baz なら、fooとbarとbazに分けて処理を行う必要がある。
+  //    ここからは分割して処理する(?や.も単体で保持する)
+  const parts = s.split(/(\?|\.)/);
+  for (let i = 0; i < parts.length; i++) {
+    let part = parts[i];
+    if ((part === '') || (part === '?') || (part === '.')) { continue }
+    // ■ -> は 2 にする(特殊ショートカット)
+    part = part.replaceAll(/\-\>/g, '2');
+    // ■ 以前のバージョンでは末尾 ? はis接頭辞に変換していたが、
+    //    foo?.bar みたいなショートカットシンボルを扱えるようにした結果
+    //    意味のconflictが起こり分かりづらくなってしまう為、
+    //    isはisで示す事になった。間違わないようにする事。
+    //    (これ実は問題ないかもしれない。その場合は昔の処理を復活させる事)
+    // ■ - の文字は消し、その次の文字をCapitalizeする(先頭と末尾除く)
+    part = part.replaceAll(/(.)-(.)/g, (_, c1, c2)=>(c1+capitalize(c2)));
+    // ■ 末尾が ! の場合それを消す。
+    //    jsに副作用の有無を気にする習慣はないが、人間の為にこれを提供する。
+    //    例えばarray.sortはin place(副作用)動作なので、
+    //    (array.sort!) と書けるとlisperにとっては非常に分かりやすい。
+    part = part.replace(/^(.+)\!$/, (_, all)=>all);
+    // ■ 上記全ての処理後に残った記号はmangleTableで変換する。
+    part = part.replaceAll(/([^$\w.?])/g, (c)=>(mangleTable[c]??c));
+    // ■ 上記の処理の結果として万が一数値はじまりになっていた場合、
+    //    先頭に文字をつけて数値はじまりを回避する。
+    //    (ほぼ->はじまり専用の対応)
+    part = part.replace(/^(\d)/, "x$1");
+    // ■ partをpartsに反映する
+    parts[i] = part;
+  }
+  s = parts.join('');
   return s;
 };
 
 
-// TODO: ここは以下をきちんとする必要がある！
-//       - symbol/keyword時は、namespaceとnameを分けて処理する
-//         (今は foo/bar にstringifyしてるだけ…)
-//       - ...
 // NB: xがsymbolもしくはkeywordもしくは純stringの時のみに対応している。
 //     それ以外だった時はundefinedを返す。
-export const x2mangledString = (x) => string2mangledString(Sym.sk2stringUnchecked(x) ?? x);
-export const symbol2mangledString = (x) => (Sym.isSymbol(x) ? x2mangledString(x) : undefined);
-export const keyword2mangledString = (x) => (Sym.isKeyword(x) ? x2mangledString(x) : undefined);
+export const x2mangledString = (x) => string2mangledString(Seon.x2string(x) ?? x);
+export const symbol2mangledString = (x) => (Seon.isSymbol(x) ? x2mangledString(x) : undefined);
+export const keyword2mangledString = (x) => (Seon.isKeyword(x) ? x2mangledString(x) : undefined);
 
 
