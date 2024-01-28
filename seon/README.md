@@ -22,9 +22,9 @@ Almost the same as [edn](https://github.com/edn-format/edn),
 but different below.
 
 - `,` is `unquote`, NOT spacer.
-- `()` is js-array.
-- `[]` is js-array but that has `%V` property.
-- `{}` is js-object.
+- `()` is js-array for list expr. It have `%L=1` extra property.
+- `[]` is js-array for vector expr. It have `%V=1` extra property.
+- `{}` is js-array for block expr. It have `%B=1` extra property.
 - Symbol and keyword are represented by encoded string in internal.
   Type of symbols and keywords are js-string.
   A keyword `:foo` is not equal `":foo"`,
@@ -32,14 +32,15 @@ but different below.
   But `seon2json` outputs these to `"foo"` and `"bar"`,
   because JSON is not support neither symbol nor keyword. Poorly.
   In addition, symbol and keyword has to suport namespace like clojure.
-- `#{}` `#!` `#:` `#'` `#=` `#^` `#?` are NOT provided.
+- `#:` `#=` `#^` `#?` are NOT provided.
 - `#""` is provided as js-regexp like clojure.
 - `#_` is provided as skip-next-one-element like clojure.
 - `#t` `#true` `#f` `#false` `#nil` `#null` `#inf` `#+inf` `#-inf` `#nan`
   are provided as corresponded values. These will NOT affect by `quote`.
   You can use symbols of `true` `false` `nil` `null` also,
   but will affect by `quote`.
-- `#()` as nameless-function will provide in future, but not now.
+- `#empty` is provided for js skipped value like `[1,,3]`
+- `#()` `#[]` `#{}` are provided for expanded version of `()` `[]` `#{}`.
 - Scheme's SRFI-38 like syntax will provide in future, but not now.
 
 
@@ -49,6 +50,17 @@ but different below.
 
 
 ## ChangeLog
+
+- 2.0.0: 20240128
+    - BREAKING CHANGE: Renew almost codes
+        - Remove src/seon/sym.mjs
+        - Remove `sastring` supports
+        - Treat `{}` to array marked as `block` for recreate js-block
+        - Modify `mangle` process
+            - Remove to conversion from `?` to `is` prefix
+            - Through `?` and `.` to js-varname for shortcut
+        - Support `#()` `#[]` `#{}` syntax
+        - Add `#empty` for js skipped value like `[1,,3]`
 
 - 1.0.1: 20240106
     - Correct to mangle from `->` to `2`

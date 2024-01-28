@@ -1,6 +1,6 @@
 {
   "name": "seon",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "description": "reader for S-Expression-Object-Notation",
   "homepage": "https://github.com/ayamada/seon2js",
   "private": false,
