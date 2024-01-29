@@ -1,0 +1,1 @@
+(sp/defsp-js test/test "()=>'(1)'")

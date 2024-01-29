@@ -2,6 +2,8 @@
 
 これは [Lisp Advent Calendar 2023](https://adventar.org/calendars/9364) 24日目の記事です。
 
+(追記：seon2js本体の更新に伴い、あちこち古くなっています。とりあえずseon2js内のソースを示すurlについては当時のブランチ内を指すurlに差し替えました)
+
 
 ## 最初にまとめ
 
@@ -10,6 +12,7 @@
     - https://ayamada.itch.io/xmas2023
 - ソースはここのgithubにあるから見たい人は見ればいい
     - ただし突貫で作ったので作りが雑だしドキュメントはない
+    - (追記：seon2jsは本体が更新され、当時のものから大きく変化しました。当時のものは[release/r0is](https://github.com/ayamada/seon2js/tree/release/r0is)ブランチから確認してください)
 - あとは読まなくていい…とりあえずゲームあそんで帰ってくれ！
 
 
@@ -47,7 +50,7 @@
 
 ![nekov](./nekov.gif?raw=true) 「seonどんな感じなの？」
 
-> ![obav](./obav.gif?raw=true) 「このプロジェクトの [../seon/package.seon](../seon/package.seon) を見てもらおうか。これで全部という訳ではないが大体こういう感じだ。見ての通り、大部分がedn互換になっている」
+> ![obav](./obav.gif?raw=true) 「このプロジェクトの [package.seon](https://github.com/ayamada/seon2js/blob/release/r0is/seon/package.seon) を見てもらおうか。これで全部という訳ではないが大体こういう感じだ。見ての通り、大部分がedn互換になっている」
 
 > ![obav](./obav.gif?raw=true) 「この `*.seon` ファイルを `*.json` ファイルに変換するcliツールを標準でつけてある。つまりさっきの `package.seon` から、このプロジェクトの `package.json` が実際に変換生成されているという訳だ」
 
@@ -77,7 +80,7 @@
 
 ![nekov](./nekov.gif?raw=true) 「ふーん。じゃあseon2jsの方はどんな感じのコードになるの？」
 
-> ![obav](./obav.gif?raw=true) 「ゲームのソースは [../example/game01/](../example/game01/) 内にあるが、以前から作っていたゲーム用jsライブラリが多く、seon2jsのコードはまだわずかだ。とりあえず [../example/game01/src/scratch.s2mjs](../example/game01/src/scratch.s2mjs) あたりを見てみてくれ」
+> ![obav](./obav.gif?raw=true) 「ゲームのソースは https://github.com/ayamada/seon2js/tree/release/r0is/example/game01/ 内にあるが、以前から作っていたゲーム用jsライブラリが多く、seon2jsのコードはまだわずかだ。とりあえず https://github.com/ayamada/seon2js/blob/release/r0is/example/game01/src/scratch.s2mjs あたりを見てみてくれ」
 
 > ![obav](./obav.gif?raw=true) 「seon2jsのソースファイルの拡張子は `.s2mjs` もしくは `.s2js` となっている。トランスパイラには引数として入力(監視)ディレクトリと出力ディレクトリを指定する。入力ディレクトリ中に入っている `.mjs` や `.js` ファイルはそのまま出力ディレクトリへとコピーされる。 `.s2mjs` や `.s2js` ファイルはトランスパイルして `.mjs` や `.js` に変換されて出力ディレクトリへと書き出される。そういう形式だ」
 
@@ -93,7 +96,7 @@
 
 ![nekov](./nekov.gif?raw=true) 「リファレンスとかないの？」
 
-> ![obav](./obav.gif?raw=true) 「そんな時間の余裕はなかった、すまんな。だが未来には作られている事だろう。今は直にメインライブラリのソースを見てくれ。 [../seon2js/src/seon2js/lang/v0/s2.s2sp](../seon2js/src/seon2js/lang/v0/s2.s2sp) に後述するdefspecial定義がたくさん入っている。また [../seon2js/src/seon2js/lang/v0/s2.s2mjs](../seon2js/src/seon2js/lang/v0/s2.s2mjs) の方には関数が少しだけ入っている」
+> ![obav](./obav.gif?raw=true) 「そんな時間の余裕はなかった、すまんな。だが未来には作られている事だろう。今は直にメインライブラリのソースを見てくれ。 https://github.com/ayamada/seon2js/blob/release/r0is/seon2js/src/seon2js/lang/v0/s2.s2sp に後述するdefspecial定義がたくさん入っている。また https://github.com/ayamada/seon2js/blob/release/r0is/seon2js/src/seon2js/lang/v0/s2.s2mjs の方には関数が少しだけ入っている」
 
 ![nekov](./nekov.gif?raw=true) 「こっちも見てみたよ。あとseon2jsトランスパイラ自体のソースコードも見てみた。これちょっと雑すぎない？」
 
@@ -101,11 +104,11 @@
 
 ![nekov](./nekov.gif?raw=true) 「DSLDSLってうるさく言ってたけど、その割にはseon2jsは `defmacro` 提供してなくない？」
 
-> ![obav](./obav.gif?raw=true) 「jsにトランスパイルする関係で、マクロ展開フェーズでのコード実行環境の保証が案外大変だったので `defmacro` 実装は延期した。代わりにjsコードを実行できる `defspecial` が提供されているので、今はそっちで代用してほしい。 [../seon2js/src/seon2js/lang/v0/s2.s2sp](../seon2js/src/seon2js/lang/v0/s2.s2sp) あたりが参考になるだろう」
+> ![obav](./obav.gif?raw=true) 「jsにトランスパイルする関係で、マクロ展開フェーズでのコード実行環境の保証が案外大変だったので `defmacro` 実装は延期した。代わりにjsコードを実行できる `defspecial` が提供されているので、今はそっちで代用してほしい。 https://github.com/ayamada/seon2js/blob/release/r0is/seon2js/src/seon2js/lang/v0/s2.s2sp あたりが参考になるだろう」
 
 ![nekov](./nekov.gif?raw=true) 「seon2jsのトランスパイルを実行してみたけど、生成されたjsのサイズ別に小さくないよ」
 
-> ![obav](./obav.gif?raw=true) 「seon2jsで生成したjsコードは最後にまとめて[google-closure-compiler](https://github.com/google/closure-compiler/)の `ADVANCED` 最適化にかけられ、ここで不要コード除去等のminify処理がなされる想定だ。この後のサイズを見て判断する必要がある。サンプルゲームの [package.seon](../example/game01/package.seon) 内にもこれをかける処理を入れてある。こういう感じで使う事になるだろう」
+> ![obav](./obav.gif?raw=true) 「seon2jsで生成したjsコードは最後にまとめて[google-closure-compiler](https://github.com/google/closure-compiler/)の `ADVANCED` 最適化にかけられ、ここで不要コード除去等のminify処理がなされる想定だ。この後のサイズを見て判断する必要がある。サンプルゲームの [package.seon](https://github.com/ayamada/seon2js/blob/release/r0is/example/game01/package.seon) 内にもこれをかける処理を書いてある。こういう感じで使う事になるだろう」
 
 > ![obav](./obav.gif?raw=true) 「このサンプルゲームの最終的なjsファイルのサイズは大体50kだ。これでもまだ大きく、後述の[js13kGames](https://js13kgames.com/)に参加できるレベルには達していない。もっとseon2js化を進め、より小さいサイズにできるようにする事も将来の課題の一つだ」
 

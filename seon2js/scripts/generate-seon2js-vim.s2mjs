@@ -1,0 +1,39 @@
+#!/usr/bin/env node
+
+
+;;; NB: このファイルはvim用syntaxを生成するスクリプトであると同時に、
+;;;     簡易的なトランスパイルのdogfoodingでもある
+
+
+(import "node:process" Process)
+
+
+(const template "let s:specials =<< END
+%%SPECIALNAMES%%
+END
+function! s:SetupSeon2jsSyntax() abort
+  setlocal filetype=clojure
+  setlocal lispwords=
+  for sp in s:specials
+    execute 'setlocal lispwords+=' . sp
+    execute 'syntax keyword clojureMacro ' . sp
+  endfor
+endfunction
+augroup seon2js
+  autocmd!
+  autocmd BufReadPost,BufNewFile *.s2sp,*.s2mjs,*.s2js call s:SetupSeon2jsSyntax()
+augroup END")
+
+
+(const-fn sanitize-unsafe-char [name] (.replaceAll name "|" "\\|"))
+
+
+(const-fn main []
+  (const special-names (.map (sp/all-special-names)
+                             sanitize-unsafe-char))
+  (console.log (.replace template
+                         "%%SPECIALNAMES%%"
+                         (.join special-names "\n"))))
+
+
+(main)

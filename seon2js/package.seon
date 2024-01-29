@@ -1,7 +1,7 @@
 ;;; -*- mode: clojure; coding: utf-8; -*-
 ;;; vim:set ft=clojure:
 {:name "seon2js"
- :version "1.1.1-ALPHA" ; TODO: Bump up automatically
+ :version "2.0.0"
  :description "transpile from seon to js"
  :homepage "https://github.com/ayamada/seon2js"
  :private false
@@ -9,26 +9,30 @@
  :files ["package.json"
          "README.md"
          "src/"
-         "src-compiler/"
-         "cli-seon2js.mjs"
+         "bin/"
          "LICENSE"]
- :exports {"." "./cli-seon2js.mjs"}
- :main "./cli-seon2js.mjs"
- :bin {"seon2js" "./cli-seon2js.mjs"}
- :dependencies {"seon"     "^1.0.1"
-                "chokidar" "^3.5.3"}
+ :main "./bin/cli-seon2js-build.mjs"
+ :exports {"." "./bin/cli-seon2js-build.mjs"
+           "./*" "./src/seon2js/*.mjs"}
+ :bin {"seon2js-build" "./bin/cli-seon2js-build.mjs"
+       "seon2js" "./bin/cli-seon2js-evaldump.mjs"}
+ :dependencies {"seon"     "^5.0.0"
+                "chokidar" "^3.6.0"
+                "google-closure-compiler" "^20231112.0.0"}
  :dev-dependencies {"rimraf" "^5.0.5"
-                    "chai"   "^5.0.0"}
+                    "chai"   "^5.1.0"}
  :scripts {"update-package.json" "seon2json package.seon"
+           "update-seon2js.vim"  "npx seon2js scripts/generate-seon2js-vim.s2mjs > ../syntax/seon2js.vim"
+           "update-all"          "npm run update-package.json && npm run update-seon2js.vim"
            ;; For test
-           "test"            "node test/index.mjs"
-           "test-s2js-clean" "rimraf test/dst"
-           "test-s2js-once"  "npx seon2js $npm_package_config_test_s2js_arguments"
-           "test-s2js-watch" "npx seon2js $npm_package_config_test_s2js_arguments --watch"
+           "test-build" "rimraf tmp; \
+                         npx seon2js-build --src-dir scripts --dst-dir tmp; \
+                         node tmp/generate-seon2js-vim.mjs > tmp/seon2js.vim; \
+                         diff tmp/seon2js.vim ../syntax/seon2js.vim"
+           "test" "node test/index.mjs"
            ;; For internal develop
            "link-seon"  "cd ../seon && npm link"
            "link-all"   "npm run link-seon && npm link seon"
            "unlink-all" "npm unlink seon && npm rm -g seon"
-           "distclean"  "rimraf node_modules package-lock.json"}
- :config {:test {:s2js {:arguments "--beep-error --srcDir test/src --dstDir test/dst"}}}
+           "distclean"  "rimraf node_modules package-lock.json tmp"}
  :license "Zlib"}

@@ -5,7 +5,16 @@ A reader for S-Expression-Object-Notation
 See https://github.com/ayamada/seon2js
 
 
-## Usage
+## Usage (Library)
+
+Add `"seon": "^X.Y.Z"` to `"dependencies"` in `package.json`.
+
+And write `import * as Seon from "seon/seon"` in js file.
+
+See https://github.com/ayamada/seon2js/tree/main/seon2js for example.
+
+
+## Usage (CLI)
 
 ```sh
 npx seon2json [path/to/src.seon] [path/to/dst.json]
@@ -24,7 +33,9 @@ but different below.
 - `,` is `unquote`, NOT spacer.
 - `()` is js-array for list expr. It have `%L=1` extra property.
 - `[]` is js-array for vector expr. It have `%V=1` extra property.
+  `seon2json` convert from this to json's `[]`.
 - `{}` is js-array for block expr. It have `%B=1` extra property.
+  `seon2json` convert from this to json's `{}`.
 - Symbol and keyword are represented by encoded string in internal.
   Type of symbols and keywords are js-string.
   A keyword `:foo` is not equal `":foo"`,
@@ -44,7 +55,8 @@ but different below.
 ## ChangeLog
 
 - 5.0.0: 20240315
-    - Migrate almost dispatch fns to seon2js (without `#_`)
+    - BREAKING CHANGES:
+        - Migrate almost dispatch fns to seon2js (without `#_`)
 
 - 4.2.1: 20240314
     - Fix mangle/string2mangledString to treat slash character

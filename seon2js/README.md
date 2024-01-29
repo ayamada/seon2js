@@ -7,81 +7,96 @@ See https://github.com/ayamada/seon2js
 
 ## Usage
 
+### cli-seon2js-evaldump.mjs
+
 ```sh
-npx seon2js --srcDir path/to/src --srcDir more/src --dstDir path/to/html/mjs
+npx seon2js -e '(console.log 1 2)'
 ```
 
-To convert from all `*.s2mjs` and `*.s2js` files in srcDir, to dstDir.
+To run seon2js code, like `node -e '...'`
+
+```sh
+npx seon2js -e '(console.log 1 2)' -d
+```
+
+To dump gcc(google-closure-compiler)-passed js code. Do not run.
+
+```sh
+npx seon2js -p '1 2 [3 4]'
+```
+
+To run and print last value, like `node -p '...'`
+(but this code be warned by gcc)
+
+```sh
+npx seon2js foo.s2mjs
+```
+
+To run this file, like `node ...`
+But this is experimental!
+Not yet supported command line arguments.
+If you run certainly, you should transpile and run transpiled file.
 
 See `npx seon2js -h` for more information.
 
 
-## ChangeLog (ALPHA)
+### cli-seon2js-build.mjs
 
-正式リリース時に消してまとめます
+```sh
+npx seon2js-build --src-dir path/to/src --src-dir more/src --dst-dir path/to/html/mjs
+```
 
-- 1.1.1-ALPHA: 20240106
-    - Bump up version of seon to 1.0.1
+To convert from all `*.s2mjs` and `*.s2js` files in `--src-dir`, to `--dst-dir`.
 
-- 1.1.0-ALPHA: 20240103
-    - Move out `mangle` module into seon
-    - Bump up version of seon to 1.0.0
-    - Hide error stacktrace of `npx seon2js`,
-      and display error stacktrace by `--show-error-stacktrace` option
-    - Add `--beep-error` option to `npx seon2js`
+See `npx seon2js-build -h` for more information.
 
-- 1.0.12-ALPHA: 20240102
-    - Apply mangle to keys of {}
 
-- 1.0.11-ALPHA: 20240101
-    - Add special form `property`
+## 分かりづらい用語＆一時メモ
 
-- 1.0.10-ALPHA: 20231231
-    - Provide `!==` `!=` `!`
-    - Fix string2mangledString for `!`
+- `r0is` `r1is` とは
+    - `revised N implementation of seon2js` の略。要はschemeのRnRS相当
+    - 互換性を大きく捨てて改善する際にNの数値を上げる
+    - androidやmacのosバージョン毎のコードネームにも近い
+    - package.seon上のバージョンとの相互関係は基本ない
+      (下手に関係を持たせるとnpm管理上の問題が発生する為)
 
-- 1.0.9-ALPHA: 20231231
-    - Fix `if`
+- seon2jsにおける `transpile` と `compile` の使い分け
+    - 「seon2jsコードをseon2jsでjsに変換する」 → `transpile`
+    - 「(seon2jsの吐き出した)jsコードをgccで変換する」 → `compile`
 
-- 1.0.8-ALPHA: 20231231
-    - Expand `if` more smart
-    - Expand `when` more smart
-    - Kill `cond` temporarily
+- `sp` とは
+    - `special-form` の略。lispのそれとほぼ同じ。macroもこれに含まれる
+    - seon2jsはトランスパイラであり、コードの置換以外は基本何も行わないが、このspecial-form関連についてはトランスパイルのタイミングで何かしらの処理を実行する事ができる。もちろんユーザは好きなspを自分で追加できる
+    - `sp` は `*.s2sp` ファイルで定義を行い、s2spファイルは `sp/import-s2sp` によって読み込める
+    - このsp定義は基本的にはtranspile時に全て解消し、transpile後のjsコードには残らない。なので通常の関数と大きく区別しやすい見た目の方がよい。 `#()` 形式や名前を全て大文字にする等を色々試したがいまいちで、結局 `sp/` のprefix(専用namespace)をつけて区別するのが一番マシという結論になった。なので `sp` 定義は基本的に専用namespaceをつけるルールとしている
+        - ただし標準提供しているものについてはあまりに基本機能なもの(例えば `if` とか)が多く、それらについては `sp/if` を提供すると同時にspなしの `if` も提供している。混乱しない範囲でこれらを使ってもよい(もし混乱するようならnamespace付きで使った方がよい)
 
-- 1.0.7-ALPHA: 20231231
-    - Mangle from `foo/bar?` to `foo.isBar`, not `isFoo.bar`
+- s2mjs/s2spで書いたライブラリの追加方法について
+    - `seon2js-build` には複数の `--src-dir` 指定ができるので、追加ライブラリの各ファイルの入ったpathを `--src-dir` で指定すればok
+    - それらは全部 `--dst-dir` 内に出力されるので、 `import` や `sp/import-s2sp` でのpath指定は `--dst-dir` 内での相対pathを指定する必要がある。ちょっとややっこしいが、基本的にはmjsでのモジュールと同じ感覚で扱える
+    - 将来的には `sp/import-s2sp` でもjs同様に `"foo/bar"` の指定(`"./foo/bar.mjs"` とかではない)をできるようにしたい(`import` の方はjsレイヤで動くので対応済)
 
-- 1.0.6-ALPHA: 20231231
-    - Bump up version of seon to 0.4.3
-    - Migrate `mangle.mjs` from seon
-
-- 1.0.5-ALPHA: 20231230
-    - Add special-form `if-not`
-
-- 1.0.4-ALPHA: 20231230
-    - Bump up version of seon to 0.3.1
-
-- 1.0.3-ALPHA: 20231229
-    - Rename `throw!` of fn to `throw-fn!`
-
-- 1.0.2-ALPHA: 20231229
-    - Bump up version of seon to 0.3.0
-
-- 1.0.1-ALPHA: 20231229
-    - Migrate seon-util/postwalk to seon-util/postwalkWithMeta
-
-- 1.0.0-ALPHA: 20231229
-    - Change naming rule of some special forms
-        - `constfn` -> `const-fn`
-        - `constfn-async` -> `const-async-fn`
-        - `export-constfn` -> `export-const-fn`
-        - `export-constfn-async` -> `export-const-async-fn`
-        - These get closer to js literal
-            - `(export-const-async-fn foo [] ...)` likes `export const foo = async () => ...;`
-    - Remove many fns in s2.s2mjs for future implementations
-    - Failed to transpile `example/game01/` now, but will repair in future
 
 ## ChangeLog
+
+### r1is
+
+- 2.0.0: 20240315
+    - Provide `npx seon2js` for tests and run one-liner
+    - Provide `npx seon2js-build` for build
+        - Provide many transpile options
+    - Renew almost special-forms
+        - Provide tests for almost special-forms
+    - Renew mangling rules for symbols and keywords
+    - Provide `syntax/seon2js.vim`
+        - Please add plugin managers of vim/neovim to `"ayamada/seon2js"`
+    - Bump up version of seon to 5.0.0
+    - Remove `example/game01/` now, but may come new example games in future
+
+
+### r0is
+
+The initial prototype
 
 - 0.1.2: 20231226
     - Bump up version of seon
