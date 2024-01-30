@@ -51,8 +51,14 @@ but different below.
 
 ## ChangeLog
 
+- 3.0.0: 20240130
+    - BREAKING CHANGES:
+        - Remove `renameInternalSeonNamespaces` and
+          add `renameNamespacesForStruct` in `seon/util`
+    - Add `seonCode2exprs` to `seon/util`
+
 - 2.0.0: 20240128
-    - BREAKING CHANGE: Renew almost codes
+    - BREAKING CHANGES: Renew almost codes
         - Remove src/seon/sym.mjs
         - Remove `sastring` supports
         - Treat `{}` to array marked as `block` for recreate js-block

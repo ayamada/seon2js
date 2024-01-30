@@ -408,25 +408,31 @@ const testUtil = () => {
   assert.deepEqual(SeonUtil.convertSeonStringToJsonStruct(`[123 456]`), [123, 456]);
   assert.deepEqual(SeonUtil.convertSeonStringToJsonStruct(`{:abc-def 123}`), {"abcDef": 123});
 
-  // renameInternalSeonNamespaces
-  // TODO
-
-  // renameInternalSeonNamespaces後にmetaの引き継ぎがされているかのチェック
+  // renameNamespacesForStruct
   const exprs1 = Seon.readAllFromSeonString(`
   123
-  ababa
-  '(+ 1 2)`);
+  ababa/obobo
+  '(+ 1 2)
+  ::key
+  `);
   const meta = Seon.getLastMetaMap();
   assert.equal(meta.get(exprs1[2]).lineNo, 4);
   assert.equal(meta.get(exprs1[2]).colNo, 3);
-  const exprs2 = SeonUtil.renameInternalSeonNamespaces(exprs1, 'foobar');
-  assert.equal(exprs2[2][1][0], Seon.makeSymbol('+'));
+  const exprs2 = SeonUtil.renameNamespacesForStruct(exprs1, {
+    '%SEON': 'foo',
+    '%CURRENT': 'my',
+  });
   assert.equal(exprs1[2][0], Seon.makeSymbol('%SEON/quote'));
-  assert.equal(exprs2[2][0], Seon.makeSymbol('foobar/quote'));
-  // renameInternalSeonNamespaces後にmetaの引き継ぎがされているかのチェック
+  assert.equal(exprs2[2][0], Seon.makeSymbol('foo/quote'));
+  assert.equal(exprs2[1], Seon.makeSymbol('ababa/obobo'));
+  assert.equal(exprs2[2][1][0], Seon.makeSymbol('+'));
+  assert.equal(exprs1[3], Seon.makeKeyword('%CURRENT/key'));
+  assert.equal(exprs2[3], Seon.makeKeyword('my/key'));
+  // renameNamespacesForStruct後にmetaの引き継ぎがされているかのチェック
   assert.equal(meta.get(exprs2[2]).lineNo, 4);
   assert.equal(meta.get(exprs2[2]).colNo, 3);
   assert.deepEqual(meta.get(exprs1[2][1]), meta.get(exprs2[2][1]));
+  assert.deepEqual(meta.get(exprs1[3]), meta.get(exprs2[3]));
 };
 
 

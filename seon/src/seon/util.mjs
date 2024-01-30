@@ -98,10 +98,24 @@ export const convertSeonStringToJsonStruct = (seonString) => {
 };
 
 
-// seon構造データをなめ、全内部symbolの内の %SEON 名前空間のrenameを行う
-// TODO: この時に同時に %CURRENT の変更も行えるとよい
-// TODO: この時にmeta継承もした方がよい(難しい)
-// TODO: なんかundefinedが返ってくる…
-export const renameInternalSeonNamespaces = (seonData, newNamespaceString) => postwalkWithMeta(seonData, (tree) => ((Seon.isSymbol(tree) && Seon.referNamespace(tree) === '%SEON') ? Seon.renameNamespace(tree, newNamespaceString) : tree));
+// Seon.readAllFromSeonStringした結果の構造内のsymbol/keywordの内、
+// 特定のnamespaceを持つものを一括でrenameして回る。
+// nsConvertTable[oldNamespaceString] = newNamespaceString; を渡す事。
+// 最低でも '%SEON' と '%CURRENT' の書き換え指定があればok。
+// (seon2jsonみたいな用途なら、renameせずにそのまま使っても問題はない)
+export const renameNamespacesForStruct = (exprs, nsConvertTable) => postwalkWithMeta(exprs, (tree) => {
+  if (!Seon.isSymbol(tree) && !Seon.isKeyword(tree)) { return tree }
+  const oldNamespace = Seon.referNamespace(tree);
+  const newNamespace = nsConvertTable[oldNamespace];
+  if (newNamespace == null) { return tree }
+  return Seon.renameNamespace(tree, newNamespace);
+});
+// seonコード文字列を渡すと、nsを適切に変換した構造を返してくれる。
+// 単にreadAllFromSeonStringしてからrenameNamespacesForStructしているだけだが、
+// この二つは大体セットで使うので関数化した。
+export const seonCode2exprs = (seonCode, nsConvertTable, seonOpts={}) => {
+  const exprs = Seon.readAllFromSeonString(seonCode, seonOpts);
+  return renameNamespacesForStruct(exprs, nsConvertTable);
+};
 
 
