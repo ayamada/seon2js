@@ -51,6 +51,9 @@ but different below.
 
 ## ChangeLog
 
+- 3.0.1: 20240130
+    - Add `throwErrorIfInvalidSymbolName` to `seon/seon`
+
 - 3.0.0: 20240130
     - BREAKING CHANGES:
         - Remove `renameInternalSeonNamespaces` and

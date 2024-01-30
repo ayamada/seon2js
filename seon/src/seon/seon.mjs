@@ -351,6 +351,16 @@ const parseSymbolFromLeftover = (leftover) => {
     return [newSymbol, newLeftover];
   }
 };
+export const throwErrorIfInvalidSymbolName = (name) => {
+  // 数値としてvalidなものはsymbol名としては不正
+  // parseNumberFromLeftover は .1 を検出すると例外を出す(このチェックも大事)
+  if (!parseNumberFromLeftover(name)) {
+    const matched = name.match(validSymbolAndLeftoverRe);
+    // マッチし、leftoverが空なら検査成功
+    if (matched && !matched[2].length) { return }
+  }
+  tnE(`invalid symbol name ${name}`);
+};
 
 
 const disassembleUndigestedTokenObject = (to) => {

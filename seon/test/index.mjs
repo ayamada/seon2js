@@ -378,6 +378,19 @@ const testSeon = () => {
   (+ 1 2)`);
   assert.equal(Seon.getLastMetaMap().get(resultExpr1).lineNo, 4);
   assert.equal(Seon.getLastMetaMap().get(resultExpr1).colNo, 3);
+
+  // throwErrorIfInvalidSymbolName
+  assert.throws(()=>Seon.throwErrorIfInvalidSymbolName("123"));
+  assert.throws(()=>Seon.throwErrorIfInvalidSymbolName("-123"));
+  assert.throws(()=>Seon.throwErrorIfInvalidSymbolName("+123"));
+  assert.throws(()=>Seon.throwErrorIfInvalidSymbolName(".1"));
+  assert.throws(()=>Seon.throwErrorIfInvalidSymbolName("a b"));
+  assert.throws(()=>Seon.throwErrorIfInvalidSymbolName("(abc)"));
+  assert.throws(()=>Seon.throwErrorIfInvalidSymbolName("\u0001"));
+  assert.doesNotThrow(()=>Seon.throwErrorIfInvalidSymbolName("abc"));
+  assert.doesNotThrow(()=>Seon.throwErrorIfInvalidSymbolName("foo-bar/baz-1"));
+  assert.doesNotThrow(()=>Seon.throwErrorIfInvalidSymbolName("foo.bar"));
+  assert.doesNotThrow(()=>Seon.throwErrorIfInvalidSymbolName("foo?.bar"));
 };
 
 
