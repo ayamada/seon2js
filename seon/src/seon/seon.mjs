@@ -84,7 +84,7 @@ import * as Sa from './sa.mjs';
 const isArray = Array.isArray;
 const isStringOrSa = (s) => (s?.constructor === String);
 const tnE = (msg) => { throw new Error(msg) };
-const tnEwTo = (msg, { lineNo, colNo }) => tnE(`${msg} at line=${lineNo} col=${colNo}`);
+const tnEwTo = (msg, to) => tnE(to ? `${msg} at line=${to.lineNo} col=${to.colNo}` : msg);
 
 
 // NB: これらはseonレベルではエラーチェックをしていない。その為、本来なら
@@ -412,7 +412,13 @@ const disassembleUndigestedTokenObject = (to) => {
 // _atooli : assembleTokenObjectsOnlyList Internal
 const _atooli = (tos, openTag, closeTag, startLine, startCol) => {
   const result = [];
-  const throwError = (to, found=undefined) => tnEwTo(`structure unmatched: started ${openTag ? JSON.stringify(openTag) : '(beginning)'} at ${startLine}:${startCol}, searching ${closeTag ? JSON.stringify(closeTag) : '(termination)'}, but found ${found || JSON.stringify(to.content)}`, to);
+  const throwError = (to, isLoseCloseTag=undefined) => {
+    const openCloseTagMsg = (openTag && closeTag) ? `started ${JSON.stringify(openTag)} at ${startLine}:${startCol}, searching ${JSON.stringify(closeTag)}, but ` : '';
+    const foundMsg = isLoseCloseTag ? `lost`
+      : (openTag && closeTag) ? `found ${JSON.stringify(to.content)}`
+      : `found unopened orphan ${JSON.stringify(to.content)}`
+    tnEwTo('structure unmatched: ' + openCloseTagMsg + foundMsg, to);
+  };
   while (tos.length) {
     const to = tos[0];
     tos = tos.slice(1);
@@ -440,7 +446,7 @@ const _atooli = (tos, openTag, closeTag, startLine, startCol) => {
     tos = leftTos;
   }
   // 閉じタグが閉じないままtosを全消費するのはエラー
-  if (closeTag !== undefined) { throwError(tos[tos.length-1], '(termination)') }
+  if (closeTag !== undefined) { throwError(tos[tos.length-1], 1) }
   // 正常に最後まで処理できた
   return [result, tos];
 };

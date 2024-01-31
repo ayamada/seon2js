@@ -51,6 +51,9 @@ but different below.
 
 ## ChangeLog
 
+- 3.0.3: 20240131
+    - Refine error message by unmatched parenthesis
+
 - 3.0.2: 20240131
     - Add `makeDenotation` and `isDenotation` to `seon/seon`
 
