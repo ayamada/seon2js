@@ -51,6 +51,9 @@ but different below.
 
 ## ChangeLog
 
+- 3.0.2: 20240131
+    - Add `makeDenotation` and `isDenotation` to `seon/seon`
+
 - 3.0.1: 20240130
     - Add `throwErrorIfInvalidSymbolName` to `seon/seon`
 

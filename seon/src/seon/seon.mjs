@@ -97,8 +97,10 @@ const makeSymbolOrKeyword = (type, symbolStr) => {
 export const makeSymbol = (symbolStr) => makeSymbolOrKeyword('symbol', symbolStr);
 // NB: symbolStrにキーワード先頭の : は含めない事！注意！
 export const makeKeyword = (symbolStr) => makeSymbolOrKeyword('keyword', symbolStr);
+export const makeDenotation = (name) => Sa.make('denotation', '', name);
 export const isSymbol = (o) => (Sa.sa2type(o) === 'symbol');
 export const isKeyword = (o) => (Sa.sa2type(o) === 'keyword');
+export const isDenotation = (o) => (Sa.sa2type(o) === 'denotation');
 export const x2string = (s) => {
   const parsed = Sa.parse(s);
   if (!parsed) { return }
@@ -470,7 +472,7 @@ dispatcheeSymbolConvertTable[makeSymbol('inf')] = Number.POSITIVE_INFINITY;
 dispatcheeSymbolConvertTable[makeSymbol('+inf')] = Number.POSITIVE_INFINITY;
 dispatcheeSymbolConvertTable[makeSymbol('-inf')] = Number.NEGATIVE_INFINITY;
 dispatcheeSymbolConvertTable[makeSymbol('nan')] = Number.NaN;
-dispatcheeSymbolConvertTable[makeSymbol('empty')] = Sa.make('denotation', '', 'empty'); // [1,,3] の空白を表現する為のdenotation
+dispatcheeSymbolConvertTable[makeSymbol('empty')] = makeDenotation('empty'); // [1,,3] の空白を表現する為のdenotation
 // TODO: このdispatcheeSymbolConvertTableをいじれる手段を提供する
 
 
