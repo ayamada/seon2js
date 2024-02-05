@@ -113,6 +113,9 @@ const testSeon = () => {
   assert(!Seon.isKeyword({}));
   assert(!Seon.isKeyword([kw1]));
 
+  assert.equal(Seon.SYM`hoge`, Seon.makeSymbol('hoge'));
+  assert.equal(Seon.KW`foo/bar`, Seon.makeKeyword('foo/bar'));
+
   assert.equal(Seon.symbol2string(sym1), '*debug*');
   assert.equal(Seon.symbol2string(sym2), 'clj-yaml.core/generate-string');
   assert.equal(Seon.symbol2string(sym3), '/');

@@ -118,6 +118,9 @@ export const renameNamespace = (s, newNamespace) => {
   const [type, , content] = parsed;
   return Sa.make(type, newNamespace, content);
 };
+// NB: lisp処理系を作る際にmakeSymbolは頻出。ショートカット記法を提供しておく
+export const SYM = (ss) => makeSymbol(ss[0]); // js上で SYM`foo` と書ける
+export const KW = (ss) => makeKeyword(ss[0]); // js上で KW`bar` と書ける
 
 
 export const listMarkerKey = '%L';

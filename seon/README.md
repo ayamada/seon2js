@@ -52,6 +52,9 @@ but different below.
 
 ## ChangeLog
 
+- 4.1.0: 20240206
+    - Add `SYM` and `KW` for js backtick shortcut notation
+
 - 4.0.0: 20240205
     - Deprecate `renameNamespacesForStruct` and provide `rewriteAllSymbols`
 
