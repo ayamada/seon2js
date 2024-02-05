@@ -41,15 +41,19 @@ but different below.
   but will affect by `quote`.
 - `#empty` is provided for js skipped value like `[1,,3]`
 - `#()` `#[]` `#{}` are provided for expanded version of `()` `[]` `#{}`.
-- Scheme's SRFI-38 like syntax will provide in future, but not now.
 
 
 ## TODO
 
 - Writer function will be provide in future, but not now.
+- Scheme's SRFI-38 like syntax will provide in future, but not now.
+- Will customize `#` dispatch table
 
 
 ## ChangeLog
+
+- 4.0.0: 20240205
+    - Deprecate `renameNamespacesForStruct` and provide `rewriteAllSymbols`
 
 - 3.0.3: 20240131
     - Refine error message by unmatched parenthesis

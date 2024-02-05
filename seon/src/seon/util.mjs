@@ -98,24 +98,38 @@ export const convertSeonStringToJsonStruct = (seonString) => {
 };
 
 
-// Seon.readAllFromSeonStringした結果の構造内のsymbol/keywordの内、
-// 特定のnamespaceを持つものを一括でrenameして回る。
-// nsConvertTable[oldNamespaceString] = newNamespaceString; を渡す事。
-// 最低でも '%SEON' と '%CURRENT' の書き換え指定があればok。
-// (seon2jsonみたいな用途なら、renameせずにそのまま使っても問題はない)
-export const renameNamespacesForStruct = (exprs, nsConvertTable) => postwalkWithMeta(exprs, (tree) => {
+// Seon.readAllFromSeonStringした結果の構造内のsymbol/keywordを置換して回る。
+// 置換条件は以下(ちょっと複雑)。
+// - 構造内の要素とreplaceTableのkeyが完全一致する場合(symbolやkeyword等)、
+//   その要素はreplaceTableのvalで置き換える。
+// - replaceTableのkeyが純文字列(上記sa系でない文字列)の場合、
+//   namespaceが同じかを見て、同じならSeon.renameNamespaceにかけて置き換える。
+// - もしreplaceTableのvalが関数なら、関数に対象を渡し、その結果で置き換える。
+//   (対象判定自体は上記と同じく、replaceTableのkeyで判定される)
+// とりあえず '%CURRENT' の書き換えをしておくとよい。
+// またseon2jsonレベルの簡単な処理であれば値への置換も可能。
+export const rewriteAllSymbols = (exprs, replaceTable) => postwalkWithMeta(exprs, (tree) => {
   if (!Seon.isSymbol(tree) && !Seon.isKeyword(tree)) { return tree }
+  // 単純置換
+  if (tree in replaceTable) {
+    const v = replaceTable[tree];
+    return (v?.constructor === Function) ? v(tree) : v;
+  }
+  // namespaceのみのrename
   const oldNamespace = Seon.referNamespace(tree);
-  const newNamespace = nsConvertTable[oldNamespace];
-  if (newNamespace == null) { return tree }
-  return Seon.renameNamespace(tree, newNamespace);
+  const newNamespace = replaceTable[oldNamespace];
+  return ((newNamespace == null) ? tree
+    : (newNamespace.constructor === Function) ? newNamespace(tree)
+    : Seon.renameNamespace(tree, newNamespace));
 });
+
+
 // seonコード文字列を渡すと、nsを適切に変換した構造を返してくれる。
-// 単にreadAllFromSeonStringしてからrenameNamespacesForStructしているだけだが、
+// 単にreadAllFromSeonStringしてからrewriteAllSymbolsしているだけだが、
 // この二つは大体セットで使うので関数化した。
-export const seonCode2exprs = (seonCode, nsConvertTable, seonOpts={}) => {
+export const seonCode2exprs = (seonCode, replaceTable, seonOpts={}) => {
   const exprs = Seon.readAllFromSeonString(seonCode, seonOpts);
-  return renameNamespacesForStruct(exprs, nsConvertTable);
+  return rewriteAllSymbols(exprs, replaceTable);
 };
 
 
