@@ -52,6 +52,9 @@ but different below.
 
 ## ChangeLog
 
+- 4.2.0: 20240207
+    - `SYM` and `KW` can also use as normal function
+
 - 4.1.0: 20240206
     - Add `SYM` and `KW` for js backtick shortcut notation
 
