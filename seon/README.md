@@ -52,6 +52,9 @@ but different below.
 
 ## ChangeLog
 
+- 4.2.1: 20240314
+    - Fix mangle/string2mangledString to treat slash character
+
 - 4.2.0: 20240207
     - `SYM` and `KW` can also use as normal function
 

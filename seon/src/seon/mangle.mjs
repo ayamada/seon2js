@@ -53,7 +53,7 @@ export const string2mangledString = (s) => {
   if (!isStringOrSa(s)) { return } // 文字列でないものは処理できない
   // ■ 最初に出てきた / はnamespace区切り文字(ただし末尾でない事！)。
   //    今は . に置換する(TODO: 将来はきちんとnsやvarの解決をする)
-  s = s.replace(/^([^\/]+)\/(.)/, "$1$2");
+  s = s.replace(/^([^\/]+)\/(.)/, "$1.$2");
   // ■ 例えば foo?.bar.baz なら、fooとbarとbazに分けて処理を行う必要がある。
   //    ここからは分割して処理する(?や.も単体で保持する)
   const parts = s.split(/(\?|\.)/);
