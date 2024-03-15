@@ -35,17 +35,13 @@
 
 ## TODO
 
-- ビルド時の最適化フラグ実装(cli内コメント参照)
-- エラーログが分かりづらいのをもうちょっとなんとかしたい
-  (自前でスタックトレースを管理するしかない？)
-- clojureのvar的な何かを導入(namespaceなしsymbolを正しくresolveする為に必要)
+- 自前でのスタックトレース出力(今は余計なjs層まで出てしまっている)
 - defmacro実装
 - repl実装
-- テスト完備
-- package.json参照機能の提供
-- enumっぽい機能の提供
-- support to build in windows
+- オプショナルな静的型付け対応
+- セルフホスティング(このタイミングで綺麗に書き直すので、今は雑で構わない)
 - support hot-reloading like shadow-cljs on browser
+- support to build in windows
 - 諸々の英語化
 
 
