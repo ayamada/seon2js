@@ -32,25 +32,19 @@ but different below.
   But `seon2json` outputs these to `"foo"` and `"bar"`,
   because JSON is not support neither symbol nor keyword. Poorly.
   In addition, symbol and keyword has to suport namespace like clojure.
-- `#:` `#=` `#^` `#?` are NOT provided.
-- `#""` is provided as js-regexp like clojure.
 - `#_` is provided as skip-next-one-element like clojure.
-- `#t` `#true` `#f` `#false` `#nil` `#null` `#inf` `#+inf` `#-inf` `#nan`
-  are provided as corresponded values. These will NOT affect by `quote`.
-  You can use symbols of `true` `false` `nil` `null` also,
-  but will affect by `quote`.
-- `#empty` is provided for js skipped value like `[1,,3]`
-- `#()` `#[]` `#{}` are provided for expanded version of `()` `[]` `#{}`.
 
 
 ## TODO
 
 - Writer function will be provide in future, but not now.
 - Scheme's SRFI-38 like syntax will provide in future, but not now.
-- Will customize `#` dispatch table
 
 
 ## ChangeLog
+
+- 5.0.0: 20240315
+    - Migrate almost dispatch fns to seon2js (without `#_`)
 
 - 4.2.1: 20240314
     - Fix mangle/string2mangledString to treat slash character

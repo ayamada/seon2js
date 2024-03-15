@@ -84,7 +84,7 @@ import * as Sa from './sa.mjs';
 const isArray = Array.isArray;
 const isStringOrSa = (s) => (s?.constructor === String);
 const tnE = (msg) => { throw new Error(msg) };
-const tnEwTo = (msg, to) => tnE(to ? `${msg} at line=${to.lineNo} col=${to.colNo}` : msg);
+export const tnEwTo = (msg, to) => tnE(to ? `${msg} at line=${to.lineNo} col=${to.colNo}` : msg);
 
 
 // NB: これらはseonレベルではエラーチェックをしていない。その為、本来なら
@@ -463,30 +463,6 @@ const assembleTokenObjectsOnlyList = (tos) => {
 }
 
 
-// dispatch未対応メモ
-// - ## clojure's NaN, Inf, -Inf (他で対応済)
-// - #: clojure's record (対応なし予定)
-// - #' clojure's var (対応なし予定)
-// - #= deprecated clojure's eval (対応なし予定)
-// - #^ clojure's metadata (対応なし予定)
-// - #? clojure's reader-conditional (対応なし予定)
-// - #?@ clojure's reader-conditional-splicing (対応なし予定)
-let dispatcheeSymbolConvertTable = {};
-dispatcheeSymbolConvertTable[makeSymbol('t')] = true;
-dispatcheeSymbolConvertTable[makeSymbol('true')] = true;
-dispatcheeSymbolConvertTable[makeSymbol('f')] = false;
-dispatcheeSymbolConvertTable[makeSymbol('false')] = false;
-dispatcheeSymbolConvertTable[makeSymbol('nil')] = null;
-dispatcheeSymbolConvertTable[makeSymbol('null')] = null;
-//dispatcheeSymbolConvertTable[makeSymbol('undefined')] = undefined; // 非常に誤判定しやすい為、これの提供は行わない事になった
-dispatcheeSymbolConvertTable[makeSymbol('inf')] = Number.POSITIVE_INFINITY;
-dispatcheeSymbolConvertTable[makeSymbol('+inf')] = Number.POSITIVE_INFINITY;
-dispatcheeSymbolConvertTable[makeSymbol('-inf')] = Number.NEGATIVE_INFINITY;
-dispatcheeSymbolConvertTable[makeSymbol('nan')] = Number.NaN;
-dispatcheeSymbolConvertTable[makeSymbol('empty')] = makeDenotation('empty'); // [1,,3] の空白を表現する為のdenotation
-// TODO: このdispatcheeSymbolConvertTableをいじれる手段を提供する
-
-
 const dispatcheeSymbolDiscard = makeSymbol('_');
 // NB: ※※※ここで構造を生成した場合は、忘れずにmetaMapに登録する事※※※
 // NB: この中でdispatch処理を行った場合はtruthyを返す事！
@@ -510,48 +486,12 @@ const defaultDispatchFns = [
         //       追加する構想がある。ここに対応コードを入れる事になる。
       }
       return 1;
-    }
-  },
-  // #"..." (regexp)
-  (to, dispatchee, stack) => {
-    if (isStringOrSa(dispatchee) && !Sa.isSaLikeString(dispatchee)) {
-      stack.unshift(new RegExp(dispatchee));
-      return 1;
-    }
-  },
-  // #symbol系
-  (to, dispatchee, stack) => {
-    const v = dispatcheeSymbolConvertTable[dispatchee];
-    if (v !== undefined) {
-      stack.unshift(v);
-      return 1;
-    }
-  },
-  // #() #[] #{}
-  (to, dispatchee, stack) => {
-    if (isArray(dispatchee)) {
-      if (dispatchee[listMarkerKey]) {
-        dispatchee[listMarkerKey] = 2;
-      } else if (dispatchee[vectorMarkerKey]) {
-        dispatchee[vectorMarkerKey] = 2;
-      } else if (dispatchee[blockMarkerKey]) {
-        dispatchee[blockMarkerKey] = 2;
-      } else {
-        tnEwTo('not reached', to);
-      }
-      stack.unshift(dispatchee);
-      return 1;
-    }
-  },
-  // TODO: schemeの `#n=`, `#n#` (shared-structure)みたいな奴のサポート
-  //       - この仕様についてはSRFI-38を見る事
-  //         https://srfi.schemers.org/srfi-38/srfi-38.html
-  //       -  `#n#` の末尾 # が問題だが、末尾文字を変更して対応したい
-];
+    }}];
 
 
-// TODO: これを外部からいじれる方法を提供する
 let dispatchFns = defaultDispatchFns;
+export const getDispatchFns = () => dispatchFns;
+export const setDispatchFns = (newDispatchFns) => (dispatchFns = newDispatchFns);
 
 
 const shiftStack = (to, stack) => {

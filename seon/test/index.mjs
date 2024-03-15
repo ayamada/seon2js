@@ -262,38 +262,32 @@ const testSeon = () => {
   assert.throws(()=>Seon.readAllFromSeonString('.1'));
 
   // structure
-  // - () and #()
+  // - ()
   assert.deepEqual(Seon.readAllFromSeonString("()"), [[]]);
-  assert.deepEqual(Seon.readAllFromSeonString("#()"), [[]]);
-  assert.deepEqual(Seon.readAllFromSeonString("(#(1 2 3)())"), [[[1,2,3],[]]]);
+  assert.deepEqual(Seon.readAllFromSeonString("((1 2 3)())"), [[[1,2,3],[]]]);
   assert(Seon.isList(Seon.readOneFromSeonString("()")));
-  assert(Seon.isList(Seon.readOneFromSeonString("#()")));
   assert(!Seon.isVector(Seon.readOneFromSeonString("()")));
   assert(!Seon.isBlock(Seon.readOneFromSeonString("()")));
   assert.throws(()=>Seon.readAllFromSeonString('('));
   assert.throws(()=>Seon.readAllFromSeonString(')'));
   assert.throws(()=>Seon.readAllFromSeonString('(]'));
   assert.throws(()=>Seon.readAllFromSeonString('(}'));
-  // - [] and #[]
+  // - []
   assert.deepEqual(Seon.readAllFromSeonString("[]"), [[]]);
-  assert.deepEqual(Seon.readAllFromSeonString("#[]"), [[]]);
-  assert.deepEqual(Seon.readAllFromSeonString("[(#[1])]"), [[[[1]]]]);
+  assert.deepEqual(Seon.readAllFromSeonString("[([1])]"), [[[[1]]]]);
   assert(!Seon.isList(Seon.readOneFromSeonString("[]")));
   assert(Seon.isVector(Seon.readOneFromSeonString("[]")));
-  assert(Seon.isVector(Seon.readOneFromSeonString("#[]")));
   assert(!Seon.isBlock(Seon.readOneFromSeonString("[]")));
   assert.throws(()=>Seon.readAllFromSeonString('['));
   assert.throws(()=>Seon.readAllFromSeonString(']'));
   assert.throws(()=>Seon.readAllFromSeonString('[)'));
   assert.throws(()=>Seon.readAllFromSeonString('[}'));
-  // - {} and #{}
+  // - {}
   assert.deepEqual(Seon.readAllFromSeonString("{}"), [[]]);
-  assert.deepEqual(Seon.readAllFromSeonString("#{}"), [[]]);
   assert.deepEqual(Seon.readAllFromSeonString('{"a" 1 "b" 2}'), [["a",1,"b",2]]);
   assert(!Seon.isList(Seon.readOneFromSeonString("{}")));
   assert(!Seon.isVector(Seon.readOneFromSeonString("{}")));
   assert(Seon.isBlock(Seon.readOneFromSeonString("{}")));
-  assert(Seon.isBlock(Seon.readOneFromSeonString("#{}")));
   assert.throws(()=>Seon.readAllFromSeonString('{'));
   assert.throws(()=>Seon.readAllFromSeonString('}'));
   assert.throws(()=>Seon.readAllFromSeonString('{)'));
@@ -350,26 +344,11 @@ const testSeon = () => {
   assert.deepEqual(Seon.readAllFromSeonString("1 #_[2] 3"), [1, 3]);
   assert.deepEqual(Seon.readAllFromSeonString("1 #_222 3"), [1, 3]);
   assert.deepEqual(Seon.readAllFromSeonString("1 #_abc 3"), [1, 3]);
-  // #t #true #f #false #nil #null #inf #+inf #-inf #nan
-  assert.equal(Seon.readOneFromSeonString("#t"), true);
-  assert.equal(Seon.readOneFromSeonString("#true"), true);
-  assert.equal(Seon.readOneFromSeonString("#f"), false);
-  assert.equal(Seon.readOneFromSeonString("#false"), false);
-  assert.equal(Seon.readOneFromSeonString("#nil"), null);
-  assert.equal(Seon.readOneFromSeonString("#null"), null);
-  assert.equal(Seon.readOneFromSeonString("#inf"), Infinity);
-  assert.equal(Seon.readOneFromSeonString("#+inf"), Infinity);
-  assert.equal(Seon.readOneFromSeonString("#-inf"), -Infinity);
-  assert(Number.isNaN(Seon.readOneFromSeonString("#nan")));
-  // #empty
-  assert.equal(Seon.readOneFromSeonString("#empty"), Sa.make('denotation', '', 'empty'));
-  // #"..." 正規表現
-  // NB: Seon上の #"\\w+" と、js上の /\w+/ を比較している
-  assert.equal(Seon.readOneFromSeonString('#"\\\\w+"').source, (/\w+/).source);
+  assert.deepEqual(Seon.readAllFromSeonString("1 #_ abc 3"), [1, 3]);
   // 未設定のdispatchはエラー扱い
   assert.throws(()=>Seon.readAllFromSeonString("##Inf"));
   assert.throws(()=>Seon.readAllFromSeonString("#:record"));
-  //assert.throws(()=>Seon.readAllFromSeonString("#'foo/bar")); // NB: これは先に ' が展開され #(%SEON/quote foo/bar) となり、 #() 構文の一種と解釈されてしまう。これを防ぐには #() の展開時に、先頭が %SEON/quote でない事をチェックしたりする必要があるが…(unquoteをunquote-splicingにするのと同じような処理)。これきちんとやろうとすると将来にコストが爆発するので、やめときたい
+  assert.throws(()=>Seon.readAllFromSeonString("#'foo/bar"));
   assert.throws(()=>Seon.readAllFromSeonString("#=(+ 1 2)"));
   assert.throws(()=>Seon.readAllFromSeonString("#^{:a 1}"));
   assert.throws(()=>Seon.readAllFromSeonString("#?(:clj 123)"));
