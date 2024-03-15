@@ -88,7 +88,7 @@ See `npx seon2js-build -h` for more information.
     - Renew almost special-forms
         - Provide tests for almost special-forms
     - Renew mangling rules for symbols and keywords
-    - Provide `syntax/seon2js.vim`
+    - Provide `ftdetect/seon2js.vim` for vim/neovim
         - Please add plugin managers of vim/neovim to `"ayamada/seon2js"`
     - Bump up version of seon to 5.0.0
     - Remove `example/game01/` now, but may come new example games in future

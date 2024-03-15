@@ -22,13 +22,13 @@
  :dev-dependencies {"rimraf" "^5.0.5"
                     "chai"   "^5.1.0"}
  :scripts {"update-package.json" "seon2json package.seon"
-           "update-seon2js.vim"  "npx seon2js scripts/generate-seon2js-vim.s2mjs > ../syntax/seon2js.vim"
+           "update-seon2js.vim"  "npx seon2js scripts/generate-seon2js-vim.s2mjs > ../ftdetect/seon2js.vim"
            "update-all"          "npm run update-package.json && npm run update-seon2js.vim"
            ;; For test
            "test-build" "rimraf tmp; \
                          npx seon2js-build --src-dir scripts --dst-dir tmp; \
                          node tmp/generate-seon2js-vim.mjs > tmp/seon2js.vim; \
-                         diff tmp/seon2js.vim ../syntax/seon2js.vim"
+                         diff tmp/seon2js.vim ../ftdetect/seon2js.vim"
            "test" "node test/index.mjs"
            ;; For internal develop
            "link-seon"  "cd ../seon && npm link"
