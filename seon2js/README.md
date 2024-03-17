@@ -35,6 +35,7 @@ npx seon2js foo.s2mjs
 To run this file, like `node ...`
 But this is experimental!
 Not yet supported command line arguments.
+You may use this with `-d` or `-t`.
 If you run certainly, you should transpile and run transpiled file.
 
 See `npx seon2js -h` for more information.
