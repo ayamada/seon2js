@@ -1,4 +1,5 @@
 import { assert } from 'chai';
+import * as Process from 'node:process';
 import * as Sa from 'seon/sa';
 import * as Seon from 'seon/seon';
 import * as SeonUtil from 'seon/util';
@@ -42,7 +43,7 @@ const isVerbose = false;
 //  }
 const tt = (seonCode) => Transpile.transpileAll(seonCode, {
   isUseCachedSpVars: 1,
-  srcPath: "test/index.mjs",
+  srcPath: Process.argv[1],
 });
 const assertEqualForSeonCodeAsync = (seonCode, result) => assert.equal(tt(seonCode), result);
 const aefsca = assertEqualForSeonCodeAsync; // よく使うので短縮名を用意
