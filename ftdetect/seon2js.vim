@@ -256,5 +256,5 @@ function! s:SetupSeon2jsSyntax() abort
 endfunction
 augroup seon2js
   autocmd!
-  autocmd BufReadPost,BufNewFile *.s2sp,*.s2mjs,*.s2js call s:SetupSeon2jsSyntax()
+  autocmd BufReadPost,BufNewFile *.seon,*.s2sp,*.s2mjs,*.s2js call s:SetupSeon2jsSyntax()
 augroup END
