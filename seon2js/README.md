@@ -55,11 +55,10 @@ See `npx seon2js-build -h` for more information.
 ## 分かりづらい用語＆一時メモ
 
 - `r0is` `r1is` とは
-    - `revised N implementation of seon2js` の略。要はschemeのRnRS相当
+    - `revised N implementation of seon2js` の略。要は[schemeのRnRS](https://standards.scheme.org/)相当
     - 互換性を大きく捨てて改善する際にNの数値を上げる
-    - androidやmacのosバージョン毎のコードネームにも近い
-    - package.seon上のバージョンとの相互関係は基本ない
-      (下手に関係を持たせるとnpm管理上の問題が発生する為)
+    - package.seon上のバージョンとの関係性についてはChangeLogを参照
+      (major versionが一対一でNに対応している訳ではない事に要注意)
 
 - seon2jsにおける `transpile` と `compile` の使い分け
     - 「seon2jsコードをseon2jsでjsに変換する」 → `transpile`
@@ -75,12 +74,14 @@ See `npx seon2js-build -h` for more information.
 - s2mjs/s2spで書いたライブラリの追加方法について
     - `seon2js-build` には複数の `--src-dir` 指定ができるので、追加ライブラリの各ファイルの入ったpathを `--src-dir` で指定すればok
     - それらは全部 `--dst-dir` 内に出力されるので、 `import` や `sp/import-s2sp` でのpath指定は `--dst-dir` 内での相対pathを指定する必要がある。ちょっとややっこしいが、基本的にはmjsでのモジュールと同じ感覚で扱える
-    - 将来的には `sp/import-s2sp` でもjs同様に `"foo/bar"` の指定(`"./foo/bar.mjs"` とかではない)をできるようにしたい(`import` の方はjsレイヤで動くので対応済)
+    - 将来的には `sp/import-s2sp` でもjs同様に `"foo/bar"` のdot prefixなし指定の自動resolveをできるようにしたい(`import` の方はjsレイヤで動くので対応済)
 
 
 ## ChangeLog
 
 ### r1is
+
+An experiment of namespaced special-forms
 
 - 2.0.0: 20240315
     - Provide `npx seon2js` for tests and run one-liner

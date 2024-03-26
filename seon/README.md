@@ -24,6 +24,12 @@ To read from seon file, and write to json file.
 
 See `package.seon`.
 
+The prime use case of this tool is to use to comment out in `package.json`.
+But it may cause a chicken-and-egg problem.
+Because `npx seon2json package.seon` write out to `package.json`,
+but it depend on `package.json` itself.
+Therefore I recommend `npm i -g seon` to install globally for initial execution.
+
 
 ## Syntax
 
