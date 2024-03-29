@@ -83,6 +83,13 @@ See `npx seon2js-build -h` for more information.
 
 An experiment of namespaced special-forms
 
+- 2.1.0: 20240329
+    - Add `--src` option to `npx seon2js-build` that is alias of `--src-dir`
+    - Support to target one source file directly
+      by `--src-dir` option in `npx seon2js-build`
+    - Update version of google-closure-compiler
+    - Improve `npm run test-build` a bit
+
 - 2.0.0: 20240315
     - Provide `npx seon2js` for tests and run one-liner
     - Provide `npx seon2js-build` for build

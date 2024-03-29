@@ -29,6 +29,10 @@ const parseOptions = {
       type: "string",
       multiple: true,
     },
+    "src": {
+      type: "string",
+      multiple: true,
+    },
     "dst-dir": {
       type: "string",
     },
@@ -64,8 +68,9 @@ const parseOptions = {
 const displayUsageAndExit = () => {
   console.log(`usage:
     npx seon2js
-      --src-dir path/to/src # specify source directories
-      --src-dir more/src # can specify multiple directories
+      --src-dir path/to/src # specify source directory or file
+      --src-dir more/src # can specify multiple directories or files
+      --src # same as --src-dir
       --dst-dir path/to/html/dst # output to one directory
 
       [--watch] # start to supervise all src-dir and transpile
@@ -83,7 +88,7 @@ const displayUsageAndExit = () => {
 
 const main = () => {
   const cmdArgs = NodeUtil.parseArgs(parseOptions);
-  const srcDirs = cmdArgs.values['src-dir'];
+  const srcDirs = ([]).concat((cmdArgs.values['src-dir'] || []), (cmdArgs.values['src'] || []));
   const dstDir = cmdArgs.values['dst-dir'];
   const isHelp = cmdArgs.values['help'];
   const isWatch = cmdArgs.values['watch'];
@@ -92,8 +97,8 @@ const main = () => {
   const isMakeMapFile = false; // TODO: 将来対応予定
   //const [foo, bar, baz] = cmdArgs.positionals;
   if (isHelp) { displayUsageAndExit() }
-  if (!srcDirs) { displayUsageAndExit() }
   if (!dstDir) { displayUsageAndExit() }
+  if (!srcDirs.length) { displayUsageAndExit() }
   if (!srcDirs.every((d)=>Fs.existsSync(d))) {
     console.log(`src-dir directory not found: ${JSON.stringify(srcDirs)}`);
     Process.exit(1);
