@@ -184,13 +184,23 @@ const resolveDstPath = (config, srcPath) => {
 };
 
 
-const runOnce = (config) => config.srcDirs.forEach((srcDir)=>traverseDir(
-  srcDir,
-  (srcPath, builtPath) => processFile(
-    config,
-    srcPath,
-    exchangeDstExt(Path.join(config.dstDir, builtPath)),
-    false)));
+const runOnce = (config) => config.srcDirs.forEach((srcDir) => {
+  if (Fs.statSync(srcDir).isDirectory()) {
+    // srcDirはディレクトリだった。内部にあるファイル全部を再帰的に処理する
+    traverseDir(srcDir, (srcPath, builtPath) => processFile(
+      config,
+      srcPath,
+      exchangeDstExt(Path.join(config.dstDir, builtPath)),
+      false));
+  } else {
+    // srcDirはディレクトリではなく単一ファイルだった。一個だけ処理して終了
+    processFile(
+      config,
+      srcDir,
+      exchangeDstExt(Path.join(config.dstDir, Path.basename(srcDir))),
+      false);
+  }
+});
 
 
 const runWatch = (config) => {

@@ -6,7 +6,9 @@ import * as NodeUtil from "node:util";
 import * as ChildProcess from "node:child_process";
 
 
-const shExecAsync = (shCode) => new Promise((resolve) => ChildProcess.exec(shCode, (... args) => resolve(args)));
+// NB: これの使い方は↓のshWithTmpFileAsync内の呼び出し部を参照。
+//     必ず返り値の処理を行う事！
+export const shExecAsync = (shCode) => new Promise((resolve, reject) => ChildProcess.exec(shCode, (... args) => resolve(args)));
 
 
 // この関数は以下の処理を順に行う
@@ -27,7 +29,7 @@ export const shWithTmpFileAsync = async (content, shCodeGenFn, isVerbose=undefin
   const [err, stdout, stderr] = await shExecAsync(shCode);
   Fs.rmSync(tmpDir, {recursive: true, force: true});
   if (stderr.length) { console.error(stderr) }
-  if (err) { throw error }
+  if (err) { throw err }
   return stdout;
 };
 
