@@ -148,6 +148,16 @@ const transpileBlock = (expr) => {
       }
       const v2 = expr[i++];
       contents.push(`${transpileOne(v1)}:${transpileOne(v2)},`);
+    } else if (Seon.isList(v1)) {
+      // NB: ブロック内の要素が (sp/??= sym val) の時のみ
+      //     destructuring-bind する処理が必要。
+      //     また、上記以外のkey部に出現するlistは不正なのでエラーにする
+      //     (key部にlistを入れる時は computed-property-name にすべき)
+      // TODO: 上記のエラー処理が必要だが、まだ未実装(判定が案外めんどい)。そのうち実装しましょう。以下のようになる筈
+      //if (!isValidDestructuringBindExpr(v1)) {
+      //  tnEwL('cannot be expr as key in object notation (you may use computed-property-name)');
+      //}
+      contents.push(`${transpileOne(v1)},`);
     } else {
       const v2 = expr[i++];
       contents.push(`${transpileOne(v1)}:${transpileOne(v2)},`);

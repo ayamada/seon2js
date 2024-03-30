@@ -83,6 +83,9 @@ See `npx seon2js-build -h` for more information.
 
 An experiment of namespaced special-forms
 
+- 2.1.1: 20240330
+    - Fix destructuring-bind like `(const {(sp/??= a 123)} obj)` to work
+
 - 2.1.0: 20240329
     - Add `--src` option to `npx seon2js-build` that is alias of `--src-dir`
     - Support to target one source file directly
