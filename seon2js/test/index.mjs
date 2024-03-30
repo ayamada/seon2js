@@ -205,7 +205,8 @@ const testSpecials = async () => {
   await aefsca('(let %%%)', 'let _PERCENT__PERCENT__PERCENT_');
 
   await aefsca('(const foo-bar 123)', 'const fooBar = (123)');
-  await aefsca('(const [(??= a 9)] (Math.max 1 2))', 'const [a=((9))] = (Math.max)((1),(2))');
+  await aefsca('(const [(??= a 9)] [1 2])', 'const [a=((9))] = [(1),(2)]');
+  await aefsca('(const {(??= a 9)} {:a 1})', 'const {a=((9))} = ({a:(1)})');
 
   await aefsca('(const-fn foo [a b c] (Math.max a (Math.min b c)))', 'const foo = ( (a,b,c) => ((Math.max)(a,(Math.min)(b,c))))');
   const cfaResult = 'const foo = (async () => ((await (foo)())))';
