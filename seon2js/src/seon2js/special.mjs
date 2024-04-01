@@ -22,7 +22,7 @@ let theEnv;
 // ここで扱える要素についてはTranspile.transpileAll内を参照
 // - theEnv.srcPath
 // - theEnv.metaMap
-// - theEnv.spVars[spSymbol] = spFn
+// - theEnv.spVars[spSymbol] = { spFn, ... meta }
 // - theEnv.callStack: []
 // - theEnv.inDestructuringBindStack: [false]
 // - theEnv.transpileOne(expr)
@@ -30,12 +30,29 @@ let theEnv;
 // - rigidifiedNamespaceTable: {}
 // - transpileFlags: {}
 
+
 export const isInDestructuringBind = () => theEnv.inDestructuringBindStack[theEnv.inDestructuringBindStack.length-1];
+
+
+// sp登録ユーティリティ
+const registerSp = (sym, f, meta={}) => (theEnv.spVars[sym] = {
+  spFn: f,
+  ... meta
+});
+const setSpMeta = (sym, k, v) => {
+  const meta = theEnv.spVars[sym];
+  if (!meta) { theEnv.tnEwL(`symbol ${theEnv.tnEwL(Seon.symbol2string(sym))} is not registered`) }
+  meta[Seon.x2string(k)] = v;
+};
+const getSpMeta = (sym, k) => theEnv.spVars[sym]?.[Seon.x2string(k)];
+
+
+const markAsLikeFn = (sym) => setSpMeta(sym, KW`is-like-a-fn`, 1);
 
 
 // NB: spSymbolは文字列以外も来るが、その場合はundefinedが返される
 export const spApply = (spSymbol, spArgs) => {
-  const spFn = theEnv.spVars[spSymbol];
+  const spFn = theEnv.spVars[spSymbol]?.spFn;
   return spFn?.(... spArgs);
 };
 
@@ -117,7 +134,7 @@ const applySpecialSources = (spSourceString, srcPath) => {
 export const installStandardSp = (env) => {
   theEnv = env;
   // とりあえずevalさえあれば何とかなる
-  theEnv.spVars[SYM`sp/eval-js-at-compile-time!`] = (jsCodeStr) => (eval(jsCodeStr), '');
+  registerSp(SYM`sp/eval-js-at-compile-time!`, ((jsCodeStr) => (eval(jsCodeStr), '')));
   // sp.s2spのpathを解決する(少しややっこしいので注意)
   const selfpath = require.resolve("seon2js/special");
   const filepath = selfpath.replace(/special\.mjs$/, 'sp.s2sp');

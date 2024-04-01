@@ -224,7 +224,7 @@ const testSpecials = async () => {
   await aefsca('(set! a b 1)', '((a)=(b)=((1)))');
   await assertThrowForSeonCodeAsync('(= a 1)');
   await aefsca('(=== a b)', '((a)===(b))');
-  await assertThrowForSeonCodeAsync('(=== a b c)');
+  await assertThrowForSeonCodeAsync('(=== a b c)'); // NB: これは案外問題になるので敢えて禁止にしてある、注意
   await aefsca('(== a b)', '((a)==(b))');
   await aefsca('(!== a b)', '((a)!==(b))');
   await aefsca('(!= a b)', '((a)!=(b))');
