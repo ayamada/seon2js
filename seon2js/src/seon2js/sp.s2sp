@@ -444,6 +444,7 @@
 (sp/definfix sp/add "+")
 (sp/defsp-with-simplified-alias sp/str [... args]
   (ARR2LST [(SYM "+") "" ... args]))
+(sp/mark-as-like-a-fn! sp/str)
 (sp/definfix sp/- "-")
 (sp/definfix sp/sub "-")
 (sp/definfix sp/* "*")

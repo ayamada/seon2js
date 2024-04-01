@@ -342,8 +342,6 @@ sp/=
 =
 sp/in
 in
-sp/str
-str
 sp/!
 !
 sp/not
