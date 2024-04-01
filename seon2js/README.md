@@ -83,6 +83,9 @@ See `npx seon2js-build -h` for more information.
 
 An experiment of namespaced special-forms
 
+- 2.2.1: 20240401
+    - Mark `sp/str` as like a fn for seon2js.vim
+
 - 2.2.0: 20240401
     - Refactor and compact special.mjs and sp.s2sp
     - Many improvements for seon2js.vim
