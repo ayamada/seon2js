@@ -8,15 +8,32 @@
 (import "node:process" Process)
 
 
+;;; sp.s2sp の提供するspecial-formを全てsyntax登録しておく。
+;;; ただし、全てspecial-formではあるものの、これらは「引数が全て平等なもの」と
+;;; 「引数が不平等なもの」とに大別される。
+;;; (具体的には and や === は引数が平等で、 if や set! は引数が平等ではない)
+;;; 引数が不平等なものは通常のspecial-formと同じインデントルールを採用し、
+;;; 引数が平等なものは敢えて関数的なインデントルールを採用する。
+;;; (これは clojure style guide では「ボディパラメータをもつフォーム」かどうか、
+;;; という表現がなされている。しかし「ボディパラメータ」とは呼べないケースでも
+;;; special-form的なインデントをしたい時が結構あるので、引数平等/不平等という
+;;; 表現に改めた)
+
+
 (const template "let s:specials =<< END
 %%SPECIALNAMES%%
 END
+let s:lispwords =<< END
+%%LISPWORDNAMES%%
+END
 function! s:SetupSeon2jsSyntax() abort
   setlocal filetype=clojure
-  setlocal lispwords=
   for sp in s:specials
-    execute 'setlocal lispwords+=' . sp
     execute 'syntax keyword clojureMacro ' . sp
+  endfor
+  setlocal lispwords=
+  for sp in s:lispwords
+    execute 'setlocal lispwords+=' . sp
   endfor
 endfunction
 augroup seon2js
@@ -29,11 +46,18 @@ augroup END")
 
 
 (const-fn main []
+  (let result template)
   (const special-names (.map (sp/all-special-names)
                              sanitize-unsafe-char))
-  (console.log (.replace template
+  (const lispword-names (.map (sp/all-lispword-names)
+                              sanitize-unsafe-char))
+  (set! result (.replace result
                          "%%SPECIALNAMES%%"
-                         (.join special-names "\n"))))
+                         (.join special-names "\n")))
+  (set! result (.replace result
+                         "%%LISPWORDNAMES%%"
+                         (.join lispword-names "\n")))
+  (console.log result))
 
 
 (main)

@@ -83,6 +83,10 @@ See `npx seon2js-build -h` for more information.
 
 An experiment of namespaced special-forms
 
+- 2.2.0: 20240401
+    - Refactor and compact special.mjs and sp.s2sp
+    - Many improvements for seon2js.vim
+
 - 2.1.1: 20240330
     - Fix destructuring-bind like `(const {(sp/??= a 123)} obj)` to work
 

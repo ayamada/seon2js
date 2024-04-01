@@ -23,12 +23,6 @@
 ;;; TODO: 今は再帰を多用しているが、最終的にはjsのコールスタックを消費しない自前stackによる再帰実装が求められる！将来に直す事
 
 
-;;; TODO: defaliasは数が少ない内はよかったが、 sp/ あり版となし版の両方を用意するにあたり列挙したら、とても読みづらくなってしまった。どうにかして改善したいが…どうすればいい？
-;;;       - ...
-;;;       - ...
-;;;       - ...
-
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; primary special-form
 
@@ -37,11 +31,12 @@
 ;;;     special.mjs 側で定義されている(これがないと何も開始できない為)
 
 
-;;; sp/defspjs は、引数として『「最終jsコード片」を返すjs関数のコード』を取り、
+;;; sp/defsp-js は、引数として『「最終jsコード片」を返すjs関数のコード』を取り、
 ;;; 呼ばれた時にそれを吐くもの。機能要件としてはdefmacroに近いが、
 ;;; 引数も返り値もjsコードでとても扱いづらい問題があり、
 ;;; また自動で再帰処理をしてくれない問題もある。
-(sp/eval-js-at-compile-time! "theEnv.spVars[SYM`sp/defsp-js`] = (sym, jsFnCode) => ((theEnv.spVars[sym] = executeJs(jsFnCode)), '')")
+(sp/eval-js-at-compile-time!
+ "registerSp(SYM`sp/defsp-js`, ((sym, jsFnCode) => (registerSp(sym, executeJs(jsFnCode)), '')))")
 
 
 ;;; 展開後に直にjsコードを埋め込む。各機能はsp/defsp類によって提供されるが、
@@ -49,7 +44,7 @@
 (sp/defsp-js sp/raw-js "(jsCodeStr) => jsCodeStr")
 
 
-;;; あるspの別名を作る
+;;; あるspの別名を作る(spVarsの内容をshallow copyする)
 (sp/defsp-js sp/defalias
   "(sym, symOrig) => ((theEnv.spVars[sym] = theEnv.spVars[symOrig]), '')")
 
@@ -62,10 +57,34 @@
 (sp/defsp-js sp/defsp
   "(sym, argsVec, ... bodies) => {
      const f = executeJs(makeFnJsString()(argsVec, ... bodies));
-     theEnv.spVars[sym] = (... args) => T(f(... args));
+     registerSp(sym, ((... args) => T(f(... args))));
      return '';
    }")
 (sp/defalias sp/defspecial sp/defsp)
+
+
+;;; 上記で定義されたdefsp-jsおよびdefspは普通に使える。しかし
+;;; このsp.s2sp自身が提供する各spのほとんどは sp/ のnamespaceなし版も
+;;; 提供する必要があり、それらに対していちいちdefaliasを別途書いていると
+;;; 大変すぎるので、自動的にnamespaceなし版を提供するdefsp-jsとdefspも用意する。
+(sp/defsp-js sp/defsp-js-with-simplified-alias
+  "(sym, jsFnCode) => {
+     spFuncall('sp/defsp-js', sym, jsFnCode);
+     spFuncall('sp/defalias', Seon.makeSymbol(Seon.referName(sym)), sym);
+     return '';
+   }")
+(sp/defsp-js sp/defsp-with-simplified-alias
+  "(sym, ... args) => {
+     spFuncall('sp/defsp', sym, ... args);
+     spFuncall('sp/defalias', Seon.makeSymbol(Seon.referName(sym)), sym);
+     return '';
+   }")
+(sp/defsp-js sp/defalias-with-simplified-alias
+  "(sym, symOrig) => {
+     spFuncall('sp/defalias', sym, symOrig);
+     spFuncall('sp/defalias', Seon.makeSymbol(Seon.referName(sym)), sym);
+     return '';
+   }")
 
 
 ;;; ある特定のnamespaceを「special-form専用」としてmarkし、
@@ -80,6 +99,33 @@
    }")
 ;;; sp のnamespaceはspecial-form専用に指定する
 (sp/rigidify-namespace-for-s2sp! "sp")
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; accessors for definitions of sp
+
+
+;;; 指定したsymのsp定義メタにエントリを追加する。以下のような感じで使う
+;;; (sp/set-sp-meta! sp/+ :foo 123)
+;;; セットする値は即値推奨(exprやsymbolは、どのタイミングで評価されるか不明)
+(sp/defsp-js sp/set-sp-meta! "setSpMeta")
+;;; 指定したsymのsp定義メタを参照する。以下のような感じで使う
+;;; (sp/get-sp-meta sp/+ :foo) => 123
+(sp/defsp-js sp/get-sp-meta "getSpMeta")
+
+
+;;; 各種の目的の為に、現在登録されている全sp定義を返すやつ
+;;; (各種の目的とは具体的にはエディタのsyntaxファイルやリファレンスの生成)
+(sp/defsp-js sp/all-special-names
+  "() => JSON.stringify(Object.keys(theEnv.spVars).map(Seon.symbol2string))")
+;;; spは「引数が平等なもの(fnと同じ引数インデントしたいもの)」と
+;;; 「引数が平等でないもの(when類と同じ引数インデントしたいもの)」とがある。
+;;; 後者のみを seon2js.vim の lispwords に登録したいので、
+;;; 後者のみのリストも取れるようにする。
+(sp/defsp-js sp/all-lispword-names
+  "() => JSON.stringify(Object.keys(theEnv.spVars).filter((sym)=>!getSpMeta(sym, KW`is-like-a-fn`)).map(Seon.symbol2string))")
+;;; 上記フラグを登録する用
+(sp/defsp-js sp/mark-as-like-a-fn! "markAsLikeFn")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -106,29 +152,23 @@
      const name = Mangle.x2mangledString(jsStatementName);
      const openP = isBlock ? '' : '(';
      const closeP = isBlock ? '' : ')';
-     theEnv.spVars[sym] = (... args) => ((args.length === 1) ? `${openP}${name} ${T(args[0])}${closeP}` : theEnv.tnEwL('invalid arguments'));
+     registerSp(sym, ((... args) => ((args.length === 1) ? `${openP}${name} ${T(args[0])}${closeP}` : theEnv.tnEwL('invalid arguments'))));
+     spFuncall('sp/defalias', Seon.makeSymbol(Seon.referName(sym)), sym);
      return '';
    }")
 (sp/defstatement1 sp/delete "delete")
-(sp/defalias sp/delete! sp/delete)
-(sp/defalias delete sp/delete)
-(sp/defalias delete! sp/delete)
+(sp/defalias-with-simplified-alias sp/delete! sp/delete)
 (sp/defstatement1 sp/await "await")
-(sp/defalias sp/await! sp/await)
-(sp/defalias await sp/await)
-(sp/defalias await! sp/await)
+(sp/defalias-with-simplified-alias sp/await! sp/await)
 (sp/defstatement1 sp/throw "throw" {:isBlock 1})
-(sp/defalias sp/throw! sp/throw)
-(sp/defalias throw sp/throw)
-(sp/defalias throw! sp/throw)
+(sp/defalias-with-simplified-alias sp/throw! sp/throw)
 
 
 ;;; NB: newはdefstatement1扱いにもできるが、(new (Date 0)) と書くよりは
 ;;;     (new Date 0) と書きたいので、別定義する
 ;;; TODO: defsp化
-(sp/defsp-js sp/new
+(sp/defsp-js-with-simplified-alias sp/new
   "(classExpr, ... args) => `(new (${T(classExpr)})(${args.map(T).join(',')}))`;")
-(sp/defalias new sp/new)
 
 
 ;;; 引数として0～1個のexprを要求するもの
@@ -139,47 +179,39 @@
      const name = Mangle.x2mangledString(jsStatementName);
      const openP = isBlock ? '' : '(';
      const closeP = isBlock ? '' : ')';
-     theEnv.spVars[sym] = (... exprs) => {
+     registerSp(sym, ((... exprs) => {
        if (1 < exprs.length) { theEnv.tnEwL('too much exprs') }
        return `${openP}${name} ${exprs.map(T).join('')}${closeP}`;
-     };
+     }));
+     spFuncall('sp/defalias', Seon.makeSymbol(Seon.referName(sym)), sym);
      return '';
    }")
 (sp/defstatement0-1 sp/return "return" {:isBlock 1})
-(sp/defalias sp/return! sp/return)
-(sp/defalias return sp/return)
-(sp/defalias return! sp/return)
+(sp/defalias-with-simplified-alias sp/return! sp/return)
 (sp/defstatement0-1 sp/break "break" {:isBlock 1})
-(sp/defalias sp/break! sp/break)
-(sp/defalias break sp/break)
-(sp/defalias break! sp/break)
+(sp/defalias-with-simplified-alias sp/break! sp/break)
 (sp/defstatement0-1 sp/continue "continue" {:isBlock 1})
-(sp/defalias sp/continue! sp/continue)
-(sp/defalias continue sp/continue)
-(sp/defalias continue! sp/continue)
+(sp/defalias-with-simplified-alias sp/continue! sp/continue)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; if, cond, when
 
 
-(sp/defsp-js sp/if
+(sp/defsp-js-with-simplified-alias sp/if
   "(pred, branch1, branch2) => spIf(pred, branch1, branch2)")
-(sp/defalias if sp/if)
-(sp/defsp sp/if-not [pred branch1 branch2]
-  (LST (SYM "if") pred branch2 branch1))
-(sp/defalias if-not sp/if-not)
+(sp/defsp-with-simplified-alias sp/if-not [pred branch1 branch2]
+  (LST (SYM "sp/if") pred branch2 branch1))
 
 
-(sp/defsp-js sp/cond "spCond")
-(sp/defalias cond sp/cond)
+(sp/defsp-js-with-simplified-alias sp/cond "spCond")
 
 
 ;;; NB: bodiesが全てexprなら、変形後もexprになる。
 ;;;     bodiesにstatementが一個でもあれば、変形後もstatementになる。要注意！
 ;;;     なおexprになった場合の返り値は、偽値のpredかbodiesの末尾かが返るが、
 ;;;     jsの真偽値のしんどい仕様により、あまり返り値を利用しない方が安定する。
-(sp/defsp-js sp/when
+(sp/defsp-js-with-simplified-alias sp/when
   "(pred, ... bodies) => {
      const transpiledBodies = stringifyBodies(bodies);
      if (isBeginStatement(transpiledBodies)) {
@@ -188,10 +220,8 @@
        return `((${T(pred)}) && ${transpiledBodies})`;
      }
    }")
-(sp/defalias when sp/when)
-(sp/defsp sp/when-not [pred ... bodies]
+(sp/defsp-with-simplified-alias sp/when-not [pred ... bodies]
   (ARR2LST [(SYM "when") (LST (SYM "not") pred) ... bodies]))
-(sp/defalias when-not sp/when-not)
 
 
 ;;; TODO: when-letも実装しましょう
@@ -208,15 +238,12 @@
 ;;; (fn symbol [arg1 arg2 arg3] expr1 expr2 expr3)
 ;;; ↓
 ;;; function symbol (arg1, arg2, arg3) { expr1; expr2; return expr3 }
-(sp/defsp-js sp/fn "makeFnJsString()")
-(sp/defalias fn sp/fn)
+(sp/defsp-js-with-simplified-alias sp/fn "makeFnJsString()")
 ;;; fooAsyncの末尾と同じと考えるなら fn-async になるし、
 ;;; const sym = async function () {}; の並び順だと考えるなら async-fn になる。
 ;;; よって両方を提供する。
-(sp/defsp-js sp/fn-async "makeFnJsString('async')")
-(sp/defalias sp/async-fn sp/fn-async)
-(sp/defalias fn-async sp/fn-async)
-(sp/defalias async-fn sp/fn-async)
+(sp/defsp-js-with-simplified-alias sp/fn-async "makeFnJsString('async')")
+(sp/defalias-with-simplified-alias sp/async-fn sp/fn-async)
 
 
 ;;; (do expr1 expr2 expr3)
@@ -224,9 +251,8 @@
 ;;; ( expr1, expr2, expr3 )
 ;;; or
 ;;; { expr1; expr2; expr3 }
-(sp/defsp-js sp/do
+(sp/defsp-js-with-simplified-alias sp/do
   "(... bodies) => stringifyBodies(bodies)")
-(sp/defalias do sp/do)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -238,14 +264,13 @@
 ;;;       しかしこういう展開をしたいケースはほぼないので、今は諦める。
 ;;;       将来の余裕のある時に完璧にしたいが…
 ;;; TODO: defsp化
-(sp/defsp-js sp/??=
+(sp/defsp-js-with-simplified-alias sp/??=
   "(sym, fallback, ... x) => {
      if (x.length) { theEnv.tnEwL('too many arguments') };
      sym = T(sym);
      fallback = T(fallback);
      return (isInDestructuringBind() ? `${sym}=(${fallback})` : `((${sym})??=(${fallback}))`);
    }")
-(sp/defalias ??= sp/??=)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -264,7 +289,7 @@
 ;;;   -> (複数のimportに展開。必ずkeyが文字列かつ要素数偶数なので{}に収まる)
 ;;; NB: `import Path from "node:path";` に展開される記法は提供しない。
 ;;;     これをしたい場合は :default で指定する事。
-(sp/defsp-js sp/import
+(sp/defsp-js-with-simplified-alias sp/import
   "(... args) => {
      if (Seon.isBlock(args[0])) {
        const targets = args[0];
@@ -273,7 +298,7 @@
        while (i < targets.length) {
          const k = targets[i++];
          const v = targets[i++];
-         result.push(spFuncall('import', k, v));
+         result.push(spFuncall('sp/import', k, v));
        }
        return result.join(';\\n');
      }
@@ -290,7 +315,6 @@
      theEnv.inDestructuringBindStack.pop();
      return `import ${transpiledTargets.replaceAll(':', ' as ').replace(',}', '}')} from ${JSON.stringify(path)}`;
    }")
-(sp/defalias import sp/import)
 
 
 ;;; (export (const foo 123))
@@ -305,9 +329,8 @@
 ;;; 引数個数が1個パターンと、2個以上パターンとで分岐する
 ;;; NB: これはdefsp化は困難。このままの方がよい
 ;;; TODO: jsのexportは他のパターンもあるが自分は使わないので将来のTODOとする
-(sp/defsp-js sp/export
+(sp/defsp-js-with-simplified-alias sp/export
   "(... args) => `export ${T((args.length === 1) ? args[0] : args)}`")
-(sp/defalias export sp/export)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -318,7 +341,7 @@
 
 ;;; NB: letは引数1個だけでもok
 ;;; TODO: defsp化
-(sp/defsp-js sp/let
+(sp/defsp-js-with-simplified-alias sp/let
   "(leftside, expr=undefined) => {
      theEnv.inDestructuringBindStack.push(true);
      const tDef = T(leftside);
@@ -326,12 +349,11 @@
      const tail = (expr === undefined) ? '' : (' = ' + T(expr));
      return 'let ' + tDef + tail;
    }")
-(sp/defalias let sp/let)
 
 
 ;;; NB: constは引数2個厳守
 ;;; TODO: defsp化
-(sp/defsp-js sp/const
+(sp/defsp-js-with-simplified-alias sp/const
   "(leftside, expr) => {
      theEnv.inDestructuringBindStack.push(true);
      const tDef = T(leftside);
@@ -339,33 +361,25 @@
      const k = theEnv.transpileFlags.isRenameConstLet ? 'let' : 'const';
      return k + ' ' + tDef + ' = ' + T(expr);
    }")
-(sp/defalias const sp/const)
 
 
 ;;; TODO: defmacro化
 ;(defmacro const-fn [... args]
 ;  \`(const (fn ,@args)))
-(sp/defsp sp/const-fn [sym ... fnargs]
+(sp/defsp-with-simplified-alias sp/const-fn [sym ... fnargs]
   (LST (SYM "const") sym (ARR2LST [(SYM "fn") ... fnargs])))
-(sp/defalias const-fn sp/const-fn)
-(sp/defsp sp/const-fn-async [sym ... fnargs]
+(sp/defsp-with-simplified-alias sp/const-fn-async [sym ... fnargs]
   (LST (SYM "const") sym (ARR2LST [(SYM "fn-async") ... fnargs])))
-(sp/defalias const-fn-async sp/const-fn-async)
-(sp/defalias sp/const-async-fn sp/const-fn-async)
-(sp/defalias const-async-fn sp/const-fn-async)
+(sp/defalias-with-simplified-alias sp/const-async-fn sp/const-fn-async)
 
 
-(sp/defsp sp/export-const [leftside expr]
+(sp/defsp-with-simplified-alias sp/export-const [leftside expr]
   (LST (SYM "export") (LST (SYM "const") leftside expr)))
-(sp/defalias export-const sp/export-const)
-(sp/defsp sp/export-const-fn [sym ... fnargs]
+(sp/defsp-with-simplified-alias sp/export-const-fn [sym ... fnargs]
   (LST (SYM "export-const") sym (ARR2LST [(SYM "fn") ... fnargs])))
-(sp/defalias export-const-fn sp/export-const-fn)
-(sp/defsp sp/export-const-fn-async [sym ... fnargs]
+(sp/defsp-with-simplified-alias sp/export-const-fn-async [sym ... fnargs]
   (LST (SYM "export-const") sym (ARR2LST [(SYM "fn-async") ... fnargs])))
-(sp/defalias export-const-fn-async sp/export-const-fn-async)
-(sp/defalias sp/export-const-async-fn sp/export-const-fn-async)
-(sp/defalias export-const-async-fn sp/export-const-fn-async)
+(sp/defalias-with-simplified-alias sp/export-const-async-fn sp/export-const-fn-async)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -376,131 +390,91 @@
 ;;; definfixは (+ 1 2 3) => (1 + 2 + 3) に展開できる。1個もokだが0個は不可
 ;;; definfix+は (+= a 1 2 3) => a+=1+2+3 みたいに展開するもの
 (sp/defsp-js sp/definfix2
-  "(sym, delimiter) => ((theEnv.spVars[sym] = (arg1, arg2, ... x) => (
+  "(sym, delimiter) => (registerSp(sym, (arg1, arg2, ... x) => (
      x.length ? theEnv.tnEwL('too many arguments') : ('((' + T(arg1) + ')' + delimiter + '(' + T(arg2) + '))')
-   )), '')")
+   )),
+   markAsLikeFn(sym),
+   spFuncall('sp/defalias', Seon.makeSymbol(Seon.referName(sym)), sym), '')")
 (sp/defsp-js sp/definfix
-  "(sym, delimiter) => ((theEnv.spVars[sym] = (... args) => (
+  "(sym, delimiter) => (registerSp(sym, (... args) => (
      '((' + args.map(T).join(')'+delimiter+'(') + '))'
-   )), '')")
+   )),
+   markAsLikeFn(sym),
+   spFuncall('sp/defalias', Seon.makeSymbol(Seon.referName(sym)), sym), '')")
 (sp/defsp-js sp/definfix+
-  "(sym, delimiter, extraDelimiter) => ((theEnv.spVars[sym] = (arg1, ... args) => (
+  "(sym, delimiter, extraDelimiter) => (registerSp(sym, (arg1, ... args) => (
      ('((' + T(arg1) + ')' + delimiter + '(' + args.map(T).join(')'+extraDelimiter+'(') + '))')
-   )), '')")
+   )),
+   markAsLikeFn(sym),
+   spFuncall('sp/defalias', Seon.makeSymbol(Seon.referName(sym)), sym), '')")
 
 
 ;;; NB: = は封印する(jsの=(set!相当)と、clojureの=と、どっちなのか混乱する為)
-(sp/defsp-js sp/=
+(sp/defsp-js-with-simplified-alias sp/=
   "(... _) => theEnv.tnEwL('= is deprecated. should use === or set!')")
-(sp/defalias = sp/=)
 
 (sp/definfix sp/set! "=") ; (set! a b 123) => (a = b = 123) が可能！
-(sp/defalias set! sp/set!)
 
+;;; NB: === 系は一見2個以上の引数を取れるようにしてもよさそうに見えるのだが、
+;;;     案外厄介な問題を抱えているので、2個固定にしている。要注意
+;;; TODO: 上記の事が分かるよう、専用のエラーメッセージを出すようにしたい
 (sp/definfix2 sp/=== "===")
-(sp/defalias === sp/===)
 (sp/definfix2 sp/== "==")
-(sp/defalias == sp/==)
 (sp/definfix2 sp/not=== "!==")
-(sp/defalias not=== sp/not===)
 (sp/definfix2 sp/!== "!==")
-(sp/defalias !== sp/!==)
 (sp/definfix2 sp/not== "!=")
-(sp/defalias not== sp/not==)
 (sp/definfix2 sp/!= "!=")
-(sp/defalias != sp/!=)
-(sp/defalias sp/not= not===)
-(sp/defalias not= sp/not===)
+(sp/defalias-with-simplified-alias sp/not= not===)
 
 (sp/definfix2 sp/< "<")
-(sp/defalias < sp/<)
 (sp/definfix2 sp/<= "<=")
-(sp/defalias <= sp/<=)
 (sp/definfix2 sp/> ">")
-(sp/defalias > sp/>)
 (sp/definfix2 sp/>= ">=")
-(sp/defalias >= sp/>=)
 
 (sp/definfix2 sp/in "in")
-(sp/defalias in sp/in)
+(sp/set-sp-meta! sp/in :is-like-a-fn 0) ; NB: infix系だが、引数が平等ではない
 
 (sp/definfix sp/&& "&&")
-(sp/defalias && sp/&&)
 (sp/definfix sp/and "&&")
-(sp/defalias and sp/and)
 (sp/definfix sp/|| "||")
-(sp/defalias || sp/||)
 (sp/definfix sp/or "||")
-(sp/defalias or sp/or)
 (sp/definfix sp/?? "??")
-(sp/defalias ?? sp/??)
 (sp/definfix sp/undefined-or "??")
-(sp/defalias undefined-or sp/undefined-or)
 (sp/definfix sp/+ "+")
-(sp/defalias + sp/+)
 (sp/definfix sp/add "+")
-(sp/defalias add sp/add)
-(sp/defsp sp/str [... args] (ARR2LST [(SYM "+") "" ... args]))
-(sp/defalias str sp/str)
+(sp/defsp-with-simplified-alias sp/str [... args]
+  (ARR2LST [(SYM "+") "" ... args]))
 (sp/definfix sp/- "-")
-(sp/defalias - sp/-)
 (sp/definfix sp/sub "-")
-(sp/defalias sub sp/sub)
 (sp/definfix sp/* "*")
-(sp/defalias * sp/*)
 (sp/definfix sp/mul "*")
-(sp/defalias mul sp/mul)
 (sp/definfix sp// "/")
-(sp/defalias / sp//)
 (sp/definfix sp/div "/")
-(sp/defalias div sp/div)
 (sp/definfix2 sp/% "%")
-(sp/defalias % sp/%)
 (sp/definfix2 sp/rem "%")
-(sp/defalias rem sp/rem)
 (sp/definfix2 sp/** "**")
-(sp/defalias ** sp/**)
 (sp/definfix2 sp/pow "**")
-(sp/defalias pow sp/pow)
 
 (sp/definfix+ sp/&&= "&&=" "&&")
-(sp/defalias &&= sp/&&=)
 (sp/definfix+ sp/and! "&&=" "&&")
-(sp/defalias and! sp/and!)
 (sp/definfix+ sp/||= "||=" "||")
-(sp/defalias ||= sp/||=)
 (sp/definfix+ sp/or! "||=" "||")
-(sp/defalias or! sp/or!)
 ;;; NB: ??= のみ、destructuring-bindの役目もあるので別枠。
 ;;;     しかし undefined-or! にはdestructuring-bindの役目は持たせない事にした
 (sp/definfix+ sp/undefined-or! "??=" "??")
-(sp/defalias undefined-or! sp/undefined-or!)
 (sp/definfix+ sp/+= "+=" "+")
-(sp/defalias += sp/+=)
 (sp/definfix+ sp/add! "+=" "+")
-(sp/defalias add! sp/add!)
 (sp/definfix+ sp/str! "+=" "+")
-(sp/defalias str! sp/str!)
 (sp/definfix+ sp/-= "-=" "-")
-(sp/defalias -= sp/-=)
 (sp/definfix+ sp/sub! "-=" "-")
-(sp/defalias sub! sp/sub!)
 (sp/definfix+ sp/*= "*=" "*")
-(sp/defalias *= sp/*=)
 (sp/definfix+ sp/mul! "*=" "*")
-(sp/defalias mul! sp/mul!)
 (sp/definfix+ sp//= "/=" "/")
-(sp/defalias /= sp//=)
 (sp/definfix+ sp/div! "/=" "/")
-(sp/defalias div! sp/div!)
 (sp/definfix2 sp/%= "%=")
-(sp/defalias %= sp/%=)
 (sp/definfix2 sp/rem! "%=")
-(sp/defalias rem! sp/rem!)
 (sp/definfix2 sp/**= "**=")
-(sp/defalias **= sp/**=)
 (sp/definfix2 sp/pow! "**=")
-(sp/defalias pow! sp/pow!)
 
 
 ;;; TODO: 以下のビット演算系も適切に定義する(優先度低)。まず名前を考える事
@@ -514,42 +488,24 @@
 ;;; unary operators
 
 
-(sp/defsp-js sp/! "(expr) => '(!('+T(expr)+'))'")
-(sp/defalias ! sp/!)
-(sp/defalias sp/not sp/!)
-(sp/defalias not sp/not)
-(sp/defsp-js sp/!! "(expr) => '(!!('+T(expr)+'))'")
-(sp/defalias !! sp/!!)
-(sp/defalias sp/coerce-boolean sp/!!)
-(sp/defalias coerce-boolean sp/coerce-boolean)
-(sp/defsp-js sp/++ "(expr) => '(++('+T(expr)+'))'")
-(sp/defalias ++ sp/++)
-(sp/defalias sp/++! sp/++)
-(sp/defalias ++! sp/++!)
-(sp/defalias sp/inc! sp/++)
-(sp/defalias inc! sp/inc!)
-(sp/defsp-js sp/inc0! "(expr) => '(('+T(expr)+')++)'")
-(sp/defalias inc0! sp/inc0!)
-(sp/defsp-js sp/-- "(expr) => '(--('+T(expr)+'))'")
-(sp/defalias -- sp/--)
-(sp/defalias sp/--! sp/--)
-(sp/defalias --! sp/--!)
-(sp/defalias sp/dec! sp/--)
-(sp/defalias dec! sp/dec!)
-(sp/defsp-js sp/dec0! "(expr) => '(('+T(expr)+')--)'")
-(sp/defalias dec0! sp/dec0!)
-(sp/defsp-js sp/|0 "(expr) => '(('+T(expr)+')|0)'")
-(sp/defalias |0 sp/|0)
-(sp/defalias sp/sint32 sp/|0)
-(sp/defalias sint32 sp/sint32)
-(sp/defalias sp/coerce-sint32 sp/|0)
-(sp/defalias coerce-sint32 sp/coerce-sint32)
-(sp/defsp-js sp/|=0 "(expr) => '(('+T(expr)+')|=0)'")
-(sp/defalias |=0 sp/|=0)
-(sp/defalias sp/sint32! sp/|=0)
-(sp/defalias sint32! sp/sint32!)
-(sp/defalias sp/coerce-sint32! sp/|=0)
-(sp/defalias coerce-sint32! sp/coerce-sint32!)
+(sp/defsp-js-with-simplified-alias sp/! "(expr) => '(!('+T(expr)+'))'")
+(sp/defalias-with-simplified-alias sp/not sp/!)
+(sp/defsp-js-with-simplified-alias sp/!! "(expr) => '(!!('+T(expr)+'))'")
+(sp/defalias-with-simplified-alias sp/coerce-boolean sp/!!)
+(sp/defsp-js-with-simplified-alias sp/++ "(expr) => '(++('+T(expr)+'))'")
+(sp/defalias-with-simplified-alias sp/++! sp/++)
+(sp/defalias-with-simplified-alias sp/inc! sp/++)
+(sp/defsp-js-with-simplified-alias sp/inc0! "(expr) => '(('+T(expr)+')++)'")
+(sp/defsp-js-with-simplified-alias sp/-- "(expr) => '(--('+T(expr)+'))'")
+(sp/defalias-with-simplified-alias sp/--! sp/--)
+(sp/defalias-with-simplified-alias sp/dec! sp/--)
+(sp/defsp-js-with-simplified-alias sp/dec0! "(expr) => '(('+T(expr)+')--)'")
+(sp/defsp-js-with-simplified-alias sp/|0 "(expr) => '(('+T(expr)+')|0)'")
+(sp/defalias-with-simplified-alias sp/sint32 sp/|0)
+(sp/defalias-with-simplified-alias sp/coerce-sint32 sp/|0)
+(sp/defsp-js-with-simplified-alias sp/|=0 "(expr) => '(('+T(expr)+')|=0)'")
+(sp/defalias-with-simplified-alias sp/sint32! sp/|=0)
+(sp/defalias-with-simplified-alias sp/coerce-sint32! sp/|=0)
 
 
 ;;; TODO: 以下を適切に定義する(優先度低)
@@ -581,12 +537,12 @@
 ;;; NB: これはtranspile側にて実装されている
 
 
-;;; (. obj :prop) ; NB: clojureとは違い、これはproperty-access専用
+;;; (. obj :prop) ; NB: clojureとは違い、これはproperty-access専用、要注意
 ;;; ↓
 ;;; (obj).prop
-(sp/defsp-js sp/.
+(sp/defsp-js-with-simplified-alias sp/.
   "(obj, prop) => `((${T(obj)}).${Mangle.x2mangledString(prop)})`")
-(sp/defalias . sp/.)
+(sp/mark-as-like-a-fn! sp/.)
 
 
 ;;; (?. obj :prop)
@@ -594,9 +550,9 @@
 ;;; ↓
 ;;; (obj)?.prop
 ;;; (obj)?.[0]
-(sp/defsp-js sp/?.
+(sp/defsp-js-with-simplified-alias sp/?.
   "(obj, prop) => `((${T(obj)})?.${(Seon.isKeyword(prop) ? Mangle.x2mangledString(prop) : T(prop))})`")
-(sp/defalias ?. sp/?.)
+(sp/mark-as-like-a-fn! sp/?.)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -610,7 +566,7 @@
 ;;;   (finally
 ;;;     ...))
 ;;; TODO: catchのところにdestructuring-bind対応が必要らしいが…あとで。
-(sp/defsp-js sp/try
+(sp/defsp-js-with-simplified-alias sp/try
   "(... bodies) => {
      let stringifiedCatch = '';
      let stringifiedFinally = '';
@@ -632,15 +588,13 @@
      const transpiledBody = bodies.map(T).join(';\\n');
      return `try { ${transpiledBody} } ${stringifiedCatch} ${stringifiedFinally}`;
    }")
-(sp/defalias try sp/try)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; require s2sp files
 
 
-(sp/defsp-js sp/import-s2sp "importS2sp")
-(sp/defalias import-s2sp sp/import-s2sp)
+(sp/defsp-js-with-simplified-alias sp/import-s2sp "importS2sp")
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -649,23 +603,20 @@
 
 (sp/defsp-js sp/is-prod
   "()=>!!theEnv.transpileFlags.isProd")
-(sp/defalias is-prod sp/is-prod)
 (sp/defsp-js sp/is-dev
   "()=>!theEnv.transpileFlags.isProd")
-(sp/defalias is-dev sp/is-dev)
 (sp/defsp-js sp/is-eliminate-assert
   "()=>!!theEnv.transpileFlags.isEliminateAssert")
-(sp/defalias is-eliminate-assert sp/is-eliminate-assert)
 (sp/defsp-js sp/is-rename-const-let
   "()=>!!theEnv.transpileFlags.isRenameConstLet")
-(sp/defalias is-rename-const-let sp/is-rename-const-let)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;; assert
 
 
-(sp/defsp-js sp/assert
+;;; TODO: assertの引数が二つある時は (sp/assert msg expr) になるようにできた方がよいのでは？インデントの事を考えると…。あとでもうちょい考える。しかし後から変更するのは問題では？うーん…互換性を考えると両対応が望ましいが…
+(sp/defsp-js-with-simplified-alias sp/assert
   ;; NB: assertはいろんなところに仕込めるよう、expr扱いになるよう工夫する。
   ;;     またassert失敗時にソース行番号が出ないと話にならないので、
   ;;     その処理も入れておく。
@@ -678,12 +629,10 @@
      }
      return `((${T(expr)}) || (()=>{ throw new Error(${JSON.stringify(msg)}) })())`;
    }")
-(sp/defalias assert sp/assert)
-(sp/defalias sp/assert! sp/assert)
-(sp/defalias assert! sp/assert)
+(sp/defalias-with-simplified-alias sp/assert! sp/assert)
 
 
-(sp/defsp-js sp/assert-empty-object
+(sp/defsp-js-with-simplified-alias sp/assert-empty-object
   "(obj, msg='found unknown object entry') => {
      if (theEnv.transpileFlags.isEliminateAssert) { return '' }
      try {
@@ -693,20 +642,7 @@
      }
      return `(Object.keys(${T(obj)}).length && (()=>{ throw new Error(${JSON.stringify(msg)}) })())`;
    }")
-(sp/defalias assert-empty-object sp/assert-empty-object)
-(sp/defalias sp/assert-empty-object! sp/assert-empty-object)
-(sp/defalias assert-empty-object! sp/assert-empty-object)
-
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;; all-special-names
-;;; 各種の目的の為に、現在登録されている全sp定義を返すやつ。
-;;; とりあえず seon2js.vim を想定しているので、
-;;; 全てを文字列として返すもののみ提供している
-
-
-(sp/defsp-js sp/all-special-names
-  "() => JSON.stringify(Object.keys(theEnv.spVars).map(Seon.symbol2string))")
+(sp/defalias-with-simplified-alias sp/assert-empty-object! sp/assert-empty-object)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
