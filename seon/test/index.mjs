@@ -354,6 +354,7 @@ const testSeon = () => {
   assert.throws(()=>Seon.readAllFromSeonString("#?(:clj 123)"));
   assert.throws(()=>Seon.readAllFromSeonString("#?@(:clj [1])"));
   assert.throws(()=>Seon.readAllFromSeonString("#foo"));
+  // TODO: Seon.setDispatchFns() を使った、カスタム定義のdispatch処理のテストも書く事
 
   // getLastMetaMap
   const [resultNum1, resultSym1, resultExpr1] = Seon.readAllFromSeonString(`

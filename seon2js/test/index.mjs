@@ -95,6 +95,15 @@ const testTranspile = async () => {
   await aefsca('(console.log 1 2)', '(console.log)((1),(2))');
   await aefsca('(.log console 1 2)', '(console).log((1),(2))');
   await aefsca('{[(Math.max 1 2)] 34}', '({[(Math.max)((1),(2))]:(34)})');
+  await aefsca('#"foo"', '(/foo/)');
+  await aefsca('#t', 'true');
+  await aefsca('#f', 'false');
+  await aefsca('#nil', 'null');
+  await aefsca2('#inf', Number.POSITIVE_INFINITY);
+  await aefsca2('#+inf', Number.POSITIVE_INFINITY);
+  await aefsca2('#-inf', Number.NEGATIVE_INFINITY);
+  await aefsca2('#nan', Number.NaN);
+  await aefsca2('null', null);
 
   // TODO: destructuring-bindのテストを追加する事
 
