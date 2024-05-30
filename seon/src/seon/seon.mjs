@@ -43,24 +43,24 @@ import * as Sa from './sa.mjs';
 //     - () には `%L=1`
 //     - [] には `%V=1`
 //     - {} には `%O=1`
-//   - #"..." はclojure同様、正規表現に変換される
-//   - #_ はclojure同様の「1要素コメント」、兼、「readエンジンへのメタ指定」。
-//     #_ の後に指定keyを持つ{}を入れる事で、readエンジンの設定を行える。
-//     しかし設定項目は全て未実装。
-//   - #t #true #f #false #nil #null #inf #+inf #-inf #nan はquoteされていても
-//     jsの true false null Infinity -Infinity NaN に解決される。
-//     (symbolとしてのtrueやfalseはquoteしてsymbolとして扱える)
-//     ただ、通常はsymbol版を使えばよいので、これを意識する必要は薄い。
-//     (これらが必要になるのは、special-formやmacro内などに限られる)
-//     なお実装上の理由で #undefined のみ提供されていないので注意。
-//   - 上記以外にも # はじまりの機能を好きに定義し直せる。
-//     これはディスパッチシンボルテーブルいじりによって提供される。
+//   - # はclojure以降、それに続く値によって個別の処理を行うdispatch機能。
+//     setDispatchFns() によってカスタマイズする事が可能。
+//     - デフォルトでは以下の変換のみサポートしている
+//       - #_ はclojure同様の「1要素コメント」
+//     - seon2jsでは上記に加え、以下の変換をサポートしている
+//       - #"..." はclojure同様、正規表現に変換される
+//       - #t #true #f #false #nil #null #inf #+inf #-inf #nan はquote状態でも
+//         jsの true false null Infinity -Infinity NaN に解決される。
+//         (symbolとしてのtrueやfalse等は、普通のjs変数と同じ扱い)
+//         しかし通常はsymbol版のtrueやnullやInfinityを使えばよい。
+//         (これらが必要になるのは、special-formやmacro内などに限られる)
+//       - 上記の他にもseon2jsの開発進行に伴い追加されていく予定
 // - readの実行後、別途metaMapが提供される。
-//   これはread結果の構造に含まれるsymbol, keyword, array, objectの各部を
+//   これはread結果の構造に含まれる symbol, keyword, array, object の各部を
 //   keyとするMapで、そのvalueは { filename, lineNo, colNo } になっている。
 //   要はエラー時にソース行番号などを示す為の情報。
 //   マクロ展開などにより構造が変化する場合は、metaの引き継ぎを忘れるな！
-//   seon/utilにて、このmetaの引き継ぎを行いやすくする関数が提供されている。
+//   seon/util にて、このmetaの引き継ぎを行いやすくする関数が提供されている。
 
 
 // seonの吐いたjs構造を評価するevalエンジンは以下の特殊シンボルを処理する事。

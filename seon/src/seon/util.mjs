@@ -41,12 +41,11 @@ export const postwalkWithMeta = (inputTree, converter) => {
 };
 
 
-// json化の際に true, false, nil, null のシンボルだけは対応する値に変換する。
+// json化の際に true, false, null のシンボルだけは対応する値に変換する。
 // 値にnullyが含まれるので要注意(inを使い判定する必要がある)
 const symbol2jsonValue = {
   [Seon.makeSymbol('true')]: true,
   [Seon.makeSymbol('false')]: false,
-  [Seon.makeSymbol('nil')]: null,
   [Seon.makeSymbol('null')]: null,
 };
 

@@ -60,6 +60,11 @@ but different below.
 
 ## ChangeLog
 
+- 6.0.0: 20240530
+    - BREAKING CHANGES:
+        - Deprecate to transform from `nil` to `null` by seon2json
+    - Bump up version of dependencies
+
 - 5.0.0: 20240315
     - BREAKING CHANGES:
         - Migrate almost dispatch fns to seon2js (without `#_`)
