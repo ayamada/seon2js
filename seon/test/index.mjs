@@ -1,8 +1,8 @@
 import { assert } from 'chai';
-import * as Sa from 'seon/sa';
-import * as Seon from 'seon/seon';
-import * as Mangle from 'seon/mangle';
-import * as SeonUtil from 'seon/util';
+import Sa from 'seon/sa';
+import Seon from 'seon/seon';
+import Mangle from 'seon/mangle';
+import SeonUtil from 'seon/util';
 
 
 // TODO:

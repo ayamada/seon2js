@@ -132,3 +132,9 @@ export const seonCode2exprs = (seonCode, replaceTable, seonOpts={}) => {
 };
 
 
+export default {
+  postwalkWithMeta,
+  convertSeonStringToJsonStruct,
+  rewriteAllSymbols,
+  seonCode2exprs,
+};

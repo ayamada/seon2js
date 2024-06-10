@@ -60,6 +60,9 @@ but different below.
 
 ## ChangeLog
 
+- 6.1.0: 20240610
+    - Provide `export default`
+
 - 6.0.0: 20240530
     - BREAKING CHANGES:
         - Deprecate to transform from `nil` to `null` by seon2json

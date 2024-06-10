@@ -646,3 +646,41 @@ export const readOneFromSeonString = (s, opts={}) => readAllFromSeonString(s, op
 
 // TODO: write系の手続きも提供しましょう
 // TODO: pretty-printも提供したいが…
+
+
+export default {
+  tnEwTo,
+  makeSymbol,
+  makeKeyword,
+  makeDenotation,
+  isSymbol,
+  isKeyword,
+  isDenotation,
+  x2string,
+  symbol2string,
+  keyword2string,
+  referNamespace,
+  referName,
+  renameNamespace,
+  SYM,
+  KW,
+  listMarkerKey,
+  vectorMarkerKey,
+  blockMarkerKey,
+  isList,
+  isVector,
+  isBlock,
+  markAsList,
+  markAsVector,
+  markAsBlock,
+  markAsList2,
+  markAsVector2,
+  markAsBlock2,
+  inheritMark,
+  getLastMetaMap,
+  throwErrorIfInvalidSymbolName,
+  getDispatchFns,
+  setDispatchFns,
+  readAllFromSeonString,
+  readOneFromSeonString,
+};
