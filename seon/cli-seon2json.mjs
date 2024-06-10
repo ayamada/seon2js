@@ -4,10 +4,10 @@
 import Fs from "node:fs";
 import Process from "node:process";
 import Path from "node:path";
-import * as NodeUtil from "node:util";
+import NodeUtil from "node:util";
 
 
-import * as SeonUtil from "seon/util";
+import SeonUtil from "seon/util";
 
 
 const mkdirp = (path) => Fs.mkdirSync(path, {recursive: true, mode: 0o755});

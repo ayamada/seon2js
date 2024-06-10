@@ -95,3 +95,9 @@ export const symbol2mangledString = (x) => (Seon.isSymbol(x) ? x2mangledString(x
 export const keyword2mangledString = (x) => (Seon.isKeyword(x) ? x2mangledString(x) : undefined);
 
 
+export default {
+  string2mangledString,
+  x2mangledString,
+  symbol2mangledString,
+  keyword2mangledString,
+};

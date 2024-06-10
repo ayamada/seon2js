@@ -61,3 +61,12 @@ export const sa2meta = (sa) => sa?.match?.(saRe)?.[2];
 export const sa2content = (sa) => sa?.match?.(saRe)?.[3];
 
 
+export default {
+  saMarkerCharacter,
+  isSaLikeString,
+  make,
+  parse,
+  sa2type,
+  sa2meta,
+  sa2content,
+};
