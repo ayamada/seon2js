@@ -7,10 +7,8 @@ import Process from "node:process";
 import * as NodeUtil from "node:util";
 import Chokidar from 'chokidar';
 
-
 import * as Seon from 'seon/seon';
 import * as SeonUtil from 'seon/util';
-
 
 import * as Build from "seon2js/build";
 
@@ -36,6 +34,9 @@ const parseOptions = {
     "dst-dir": {
       type: "string",
     },
+    "dst-file": {
+      type: "string",
+    },
     "watch": {
       type: "boolean",
       //short: "w",
@@ -58,6 +59,15 @@ const parseOptions = {
     "tf-rename-const-let": {
       type: "boolean",
     },
+    // bundle用の引数は `bundle-` のprefixをつけて区別する
+    "bundle-entry-point": {
+      type: "string",
+      multiple: true,
+    },
+    "bundle-extra-args": {
+      type: "string",
+      multiple: true,
+    },
     // TODO: あと以下あたりの追加のスイッチが必要。いい名前を決める事
     //       - map生成フラグ
     //       - 他には？
@@ -67,21 +77,26 @@ const parseOptions = {
 
 const displayUsageAndExit = () => {
   console.log(`usage:
-    npx seon2js
-      --src-dir path/to/src # specify source directory or file
-      --src-dir more/src # can specify multiple directories or files
-      --src # same as --src-dir
-      --dst-dir path/to/html/dst # output to one directory
+  npx seon2js
+    --src-dir=path/to/src # specify source directory or file
+    [--src-dir=more/src] # can specify multiple directories or files
+    [--src=another/src] # same as --src-dir
 
-      [--watch] # start to supervise all src-dir and transpile
-      [-b --beep-error] # alert error with beep
-      [-s --show-error-stacktrace] # display stacktrace on error (for debug)
+    [--dst-dir=path/to/html/dst] # output to one directory, and/or
+    [--dst-file=path/to/html/dst.js] # output and bundle to one file, should need with --bundle-entry-point
 
-      [--tf-eliminate-assert] # transpile-flags: eliminate-assert
-      [--tf-rename-const-let] # transpile-flags: rename-const-let (experimental)
-      [--tf-prod] # transpile-flags: prod, eliminate-assert
+    [--watch] # start to supervise all src-dir and transpile
+    [-b --beep-error] # alert error with beep
+    [-s --show-error-stacktrace] # display stacktrace on error (for debug)
 
-      [-h --help] # show help`);
+    [--tf-eliminate-assert] # transpile-flag: eliminate-assert
+    [--tf-rename-const-let] # transpile-flag: rename-const-let (experimental)
+    [--tf-prod] # transpile-flag: prod, eliminate-assert
+
+    [--bundle-entry-point='...'] # esbuild-option: entryPoints
+    [--bundle-extra-args='...'] # esbuild-option: extra args if you want (default: '')
+
+    [-h --help] # show this help`);
   Process.exit(1);
 };
 
@@ -89,16 +104,30 @@ const displayUsageAndExit = () => {
 const main = () => {
   const cmdArgs = NodeUtil.parseArgs(parseOptions);
   const srcDirs = ([]).concat((cmdArgs.values['src-dir'] || []), (cmdArgs.values['src'] || []));
-  const dstDir = cmdArgs.values['dst-dir'];
+  let dstDir = cmdArgs.values['dst-dir'];
+  const dstFile = cmdArgs.values['dst-file'];
   const isHelp = cmdArgs.values['help'];
   const isWatch = cmdArgs.values['watch'];
   const isBeepError = cmdArgs.values['beep-error'];
   const isShowErrorStacktrace = cmdArgs.values["show-error-stacktrace"];
   const isMakeMapFile = false; // TODO: 将来対応予定
+  const bundleParams = {
+    bundleEntryPoints: (cmdArgs.values['bundle-entry-point']||[]),
+    bundleExtraArgs: (cmdArgs.values['bundle-extra-args']||[]).join(' '),
+  };
+  let isNeedCleanUpDstDirAfter;
   //const [foo, bar, baz] = cmdArgs.positionals;
-  if (isHelp) { displayUsageAndExit() }
-  if (!dstDir) { displayUsageAndExit() }
-  if (!srcDirs.length) { displayUsageAndExit() }
+  if (isHelp) { return displayUsageAndExit() }
+  if (!dstDir) {
+    if (!dstFile) { return displayUsageAndExit() }
+    dstDir = Fs.mkdtempSync("/tmp/send2js-build-");
+    isNeedCleanUpDstDirAfter = 1;
+  }
+  if (dstFile && !bundleParams.bundleEntryPoints.length) {
+    console.log(`Error: --dst-file should need with --bundle-entry-point`);
+    Process.exit(1);
+  }
+  if (!srcDirs.length) { return displayUsageAndExit() }
   if (!srcDirs.every((d)=>Fs.existsSync(d))) {
     console.log(`src-dir directory not found: ${JSON.stringify(srcDirs)}`);
     Process.exit(1);
@@ -121,12 +150,15 @@ const main = () => {
   const config = {
     srcDirs,
     dstDir,
+    dstFile,
     //seon2jsBaseDir, // NB: これは不要になった筈だが、もしかするとまだ必要かもしれない。消す予定だが、一旦保留
     isWatch,
     isBeepError,
     isShowErrorStacktrace,
     isMakeMapFile,
     transpileFlags,
+    isNeedCleanUpDstDirAfter,
+    bundleParams,
   };
   Build.bootstrap(config);
 };

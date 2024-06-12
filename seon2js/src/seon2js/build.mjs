@@ -1,18 +1,20 @@
 
 
+// TODO: config.isNeedCleanUpDstDirAfter が真の時は、
+//       システムの一時ディレクトリにファイルツリーを書き出しているので、
+//       ctrl-Cで終了する際は config.dstDir を消すようにしたい。
+//       シグナル監視をつけて実装する事！
+//       (シグナル監視のやり方は旧asg-playerにある)
+
+
 import Fs from 'node:fs';
 import Path from 'node:path';
 import Process from "node:process";
+import ChildProcess from "node:child_process";
 import Chokidar from 'chokidar';
 
-
-import * as Seon from 'seon/seon';
-import * as SeonUtil from 'seon/util';
-
-
 import * as Transpile from "./transpile.mjs";
-//import * as Gcc from "./gcc.mjs";
-//import * as Sh from "./sh.mjs";
+import * as Sh from "./sh.mjs";
 
 
 // TODO: windows対応
@@ -105,6 +107,92 @@ const resolveDstExt = (srcPath) => {
 };
 
 
+const bundleState = {
+  waitMsec: 500,
+  reservedTimestamp: undefined,
+  isRunningSuperviser: undefined,
+  isRunningBundle: undefined,
+  isNeedRerunBundle: undefined,
+};
+
+
+// TODO: この回りは https://esbuild.github.io/api/ 辺りを確認しながら、
+//       外部プロセス実行ではなくesbuildを実行したい。
+//       できれば差分ビルドおよびwatchモードにも対応させたい(めんどい)
+export const formatBundleCommand = (config) => {
+  const { srcDirs, dstDir, dstFile, bundleParams } = config;
+  const {
+    bundleEntryPoints,
+    bundleExtraArgs = '',
+  } = bundleParams;
+  // --bundle-entry-point で指定されたpathがもし --src-dir 内のpathであれば、それは --dst-dir 内のpathへとマッピングしなくてはならない
+  const resolveEntryPointPath = (p) => {
+    let entryPointPath = p;
+    // この辺りのpath書き換え処理については resolveDstPath を参照
+    // TODO: resolveDstPathと統合できないかどうかを検討
+    // TODO: indexOfによるマッチだと誤マッチが発生する可能性が残る、これは正しくはPath内にある何かを使わないといけない筈！
+    const matchedSrcDirs = srcDirs.filter((src)=>!p.indexOf(src));
+    if (matchedSrcDirs.length) {
+      entryPointPath = exchangeDstExt(p.replace(matchedSrcDirs[0], dstDir));
+    }
+    if (!Fs.existsSync(entryPointPath)) {
+      const msg = `!!! bundle entry point file ${entryPointPath} not found, cannot bundle !!!`;
+      console.log(msg);
+      throw new Error(msg);
+    }
+    return entryPointPath;
+  };
+  const O_ENTRYPOINTS = bundleEntryPoints.map(resolveEntryPointPath).join(' ');
+  const shCode = `npx esbuild ${O_ENTRYPOINTS} --bundle --outfile=${dstFile} ${bundleExtraArgs}`;
+  //console.log(shCode); // for debug
+  return shCode;
+};
+const executeBundle = async (config) => {
+  const shCode = formatBundleCommand(config);
+  const [err, stdout, stderr] = await Sh.shExecAsync(shCode);
+  if (stdout.length) { console.log(stdout) }
+  if (stderr.length) { console.error(stderr) }
+  if (err) {
+    const beeper = config.isBeepError ? "\u0007" : "";
+    console.error(`${beeper}failed to bundle!`);
+    console.log("Error: " + err.message);
+  } else {
+    console.log(`done to bundle all files to ${config.dstFile} !`);
+  }
+};
+
+// ファイルが変動があった。とりあえず予約フラグを立てておき、
+// 一定秒数後にdstFileを更新する
+// TODO: これesbuild以外にも他のbundlerを使えるようにしておきたい(難しい)
+const applyBundleLater = (config) => {
+  if (config.dstFile == null) { return } // dstFile無指定なら何もしない
+  bundleState.reservedTimestamp = Date.now() + bundleState.waitMsec;
+  if (bundleState.isRunningBundle) {
+    // 現在bundle実行中なら、終わるのを待ってから再実行する
+    // (その為のフラグを立てる)
+    isNeedRerunBundle = 1;
+  }
+  if (!bundleState.isRunningSuperviser) {
+    bundleState.isRunningSuperviser = 1;
+    const superviser = async () => {
+      if (Date.now() < bundleState.reservedTimestamp) {
+        setTimeout(superviser, 50);
+        return;
+      }
+      bundleState.isRunningBundle = 1;
+      await executeBundle(config);
+      if (bundleState.isNeedRerunBundle) {
+        bundleState.isNeedRerunBundle = 0;
+        await executeBundle(config);
+      }
+      bundleState.isRunningBundle = 0;
+      bundleState.isRunningSuperviser = 0;
+    };
+    setTimeout(superviser, 50);
+  }
+};
+
+
 const processFile = (config, srcPath, dstPath, isCheckMtime=false) => {
   if (isCheckMtime && Fs.existsSync(dstPath)) {
     if (getFileMtime(srcPath) <= getFileMtime(dstPath)) {
@@ -122,11 +210,13 @@ const processFile = (config, srcPath, dstPath, isCheckMtime=false) => {
       case ".mjs":
         console.log(`found "${srcPath}", copy to "${dstPath}"`);
         copyFile(srcPath, dstPath);
+        applyBundleLater(config);
         break;
       // - s2js, s2mjs は変換してdstに吐く。ログも出す
       case ".s2js":
       case ".s2mjs":
         transpileSeonToJs(config, srcPath, dstPath);
+        applyBundleLater(config);
         break;
       // - s2sp はdefspecial用ファイル。処理がちょっと複雑になる
       case ".s2sp":
@@ -138,7 +228,8 @@ const processFile = (config, srcPath, dstPath, isCheckMtime=false) => {
           // 無限再帰しないようにする必要がある。
           console.log(`found special file "${srcPath}", retranspile all files!`);
           runOnce({ ... config, isWatch: false, isInRecursive: true });
-          console.log(`done retranspile all files!`);
+          applyBundleLater(config);
+          console.log(`done to retranspile all files!`);
           // TODO: これはrunWatch初回実行時はとてもややっこしくなるし重くなる。なんとかならない？
         } else {
           // runOnceからの実行なら何もしない
@@ -151,7 +242,7 @@ const processFile = (config, srcPath, dstPath, isCheckMtime=false) => {
     }
   } catch (e) {
     const beeper = config.isBeepError ? "\u0007" : "";
-    console.log(`found "${srcPath}", but occur exception ${beeper}`);
+    console.log(`${beeper}found "${srcPath}", but occur exception`);
     if (config.isShowErrorStacktrace) { console.log(e) }
     console.log("Error: " + e.message);
   }

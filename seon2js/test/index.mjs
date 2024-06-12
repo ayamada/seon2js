@@ -104,6 +104,7 @@ const testTranspile = async () => {
   await aefsca2('#-inf', Number.NEGATIVE_INFINITY);
   await aefsca2('#nan', Number.NaN);
   await aefsca2('null', null);
+  assertThrowForSeonCode2('nil');
 
   // TODO: destructuring-bindのテストを追加する事
 

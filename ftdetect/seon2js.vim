@@ -1,3 +1,4 @@
+
 let s:specials =<< END
 sp/eval-js-at-compile-time!
 sp/defsp-js
@@ -398,6 +399,64 @@ npm-util/resolve-package-name
 npm-util/resolve-package-version
 npm-util/resolve
 END
+let s:jswords =<< END
+break
+case
+catch
+class
+const
+continue
+debugger
+default
+delete
+do
+else
+export
+extends
+false
+finally
+for
+function
+if
+import
+in
+instanceof
+new
+null
+return
+super
+switch
+this
+throw
+true
+try
+typeof
+var
+void
+while
+with
+let
+static
+yield
+await
+enum
+implements
+interface
+package
+private
+protected
+public
+arguments
+as
+from
+async
+eval
+get
+of
+set
+null
+undefined
+END
 function! s:SetupSeon2jsSyntax() abort
   setlocal filetype=clojure
   for sp in s:specials
@@ -406,6 +465,9 @@ function! s:SetupSeon2jsSyntax() abort
   setlocal lispwords=
   for sp in s:lispwords
     execute 'setlocal lispwords+=' . sp
+  endfor
+  for js in s:jswords
+    execute 'syntax keyword clojureVariable ' . js
   endfor
 endfunction
 augroup seon2js

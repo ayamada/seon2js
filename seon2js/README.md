@@ -52,6 +52,14 @@ To convert from all `*.s2mjs` and `*.s2js` files in `--src-dir`, to `--dst-dir`.
 See `npx seon2js-build -h` for more information.
 
 
+## 不具合情報
+
+- 現在のところ、 `#"..."` による正規表現記法内に出現するbackslash文字 ```\``` は、 ```\\``` のように二個入力する必要があります
+    - 具体的には `(.split "123\n456" #"\\n")` のようにする事になります。これはclojureでの正規表現記法とは異なるので注意が必要です
+    - これは正規表現記法の `#"..."` の内部のparse処理が、通常の文字列のtokenizerと共有しているのが原因です
+    - 将来には直す予定ですが、その為にはseonのparserの大幅な改善が必要な為、当面はこの仕様のまま開発を進めます
+
+
 ## 分かりづらい用語＆一時メモ
 
 - `r0is` `r1is` とは
@@ -82,6 +90,14 @@ See `npx seon2js-build -h` for more information.
 ### r1is
 
 An experiment of namespaced special-forms
+
+- 3.0.0: 20240???
+    - Add more options to `npx seon2js-build`
+        - `--dst-file`
+        - `--bundle-entry-point`
+        - `--bundle-extra-args`
+    - Remove `src/seon2js/gcc.mjs` and related codes
+    - Add js reserved words to seon2js.vim
 
 - 2.2.1: 20240401
     - Mark `sp/str` as like a fn for seon2js.vim
