@@ -92,11 +92,11 @@ See `npx seon2js-build -h` for more information.
 An experiment of namespaced special-forms
 
 - 3.0.0: 20240???
+    - BREAKING CHANGES: Remove `src/seon2js/gcc.mjs` and related codes
     - Add more options to `npx seon2js-build`
-        - `--dst-file`
+        - `--bundle-out-file`
         - `--bundle-entry-point`
         - `--bundle-extra-args`
-    - Remove `src/seon2js/gcc.mjs` and related codes
     - Add js reserved words to seon2js.vim
 
 - 2.2.1: 20240401

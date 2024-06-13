@@ -120,7 +120,7 @@ const bundleState = {
 //       外部プロセス実行ではなくesbuildを実行したい。
 //       できれば差分ビルドおよびwatchモードにも対応させたい(めんどい)
 export const formatBundleCommand = (config) => {
-  const { srcDirs, dstDir, dstFile, bundleParams } = config;
+  const { srcDirs, dstDir, bundleOutFile, bundleParams } = config;
   const {
     bundleEntryPoints,
     bundleExtraArgs = '',
@@ -143,7 +143,7 @@ export const formatBundleCommand = (config) => {
     return entryPointPath;
   };
   const O_ENTRYPOINTS = bundleEntryPoints.map(resolveEntryPointPath).join(' ');
-  const shCode = `npx esbuild ${O_ENTRYPOINTS} --bundle --outfile=${dstFile} ${bundleExtraArgs}`;
+  const shCode = `npx esbuild ${O_ENTRYPOINTS} --bundle --outfile=${bundleOutFile} ${bundleExtraArgs}`;
   //console.log(shCode); // for debug
   return shCode;
 };
@@ -157,15 +157,15 @@ const executeBundle = async (config) => {
     console.error(`${beeper}failed to bundle!`);
     console.log("Error: " + err.message);
   } else {
-    console.log(`done to bundle all files to ${config.dstFile} !`);
+    console.log(`done to bundle all files to ${config.bundleOutFile} !`);
   }
 };
 
 // ファイルが変動があった。とりあえず予約フラグを立てておき、
-// 一定秒数後にdstFileを更新する
+// 一定秒数後にbundleOutFileを更新する
 // TODO: これesbuild以外にも他のbundlerを使えるようにしておきたい(難しい)
 const applyBundleLater = (config) => {
-  if (config.dstFile == null) { return } // dstFile無指定なら何もしない
+  if (config.bundleOutFile == null) { return } // 無指定なら何もしない
   bundleState.reservedTimestamp = Date.now() + bundleState.waitMsec;
   if (bundleState.isRunningBundle) {
     // 現在bundle実行中なら、終わるのを待ってから再実行する

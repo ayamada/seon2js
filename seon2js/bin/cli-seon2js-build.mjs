@@ -34,9 +34,6 @@ const parseOptions = {
     "dst-dir": {
       type: "string",
     },
-    "dst-file": {
-      type: "string",
-    },
     "watch": {
       type: "boolean",
       //short: "w",
@@ -60,6 +57,9 @@ const parseOptions = {
       type: "boolean",
     },
     // bundle用の引数は `bundle-` のprefixをつけて区別する
+    "bundle-out-file": {
+      type: "string",
+    },
     "bundle-entry-point": {
       type: "string",
       multiple: true,
@@ -83,7 +83,9 @@ const displayUsageAndExit = () => {
     [--src=another/src] # same as --src-dir
 
     [--dst-dir=path/to/html/dst] # output to one directory, and/or
-    [--dst-file=path/to/html/dst.js] # output and bundle to one file, should need with --bundle-entry-point
+    [--bundle-out-file=path/to/html/out.js] # output and bundle to one file, should need with --bundle-entry-point
+    [--bundle-entry-point='...'] # esbuild-option: entryPoints
+    [--bundle-extra-args='...'] # esbuild-option: extra args if you want (default: '')
 
     [--watch] # start to supervise all src-dir and transpile
     [-b --beep-error] # alert error with beep
@@ -92,9 +94,6 @@ const displayUsageAndExit = () => {
     [--tf-eliminate-assert] # transpile-flag: eliminate-assert
     [--tf-rename-const-let] # transpile-flag: rename-const-let (experimental)
     [--tf-prod] # transpile-flag: prod, eliminate-assert
-
-    [--bundle-entry-point='...'] # esbuild-option: entryPoints
-    [--bundle-extra-args='...'] # esbuild-option: extra args if you want (default: '')
 
     [-h --help] # show this help`);
   Process.exit(1);
@@ -105,12 +104,12 @@ const main = () => {
   const cmdArgs = NodeUtil.parseArgs(parseOptions);
   const srcDirs = ([]).concat((cmdArgs.values['src-dir'] || []), (cmdArgs.values['src'] || []));
   let dstDir = cmdArgs.values['dst-dir'];
-  const dstFile = cmdArgs.values['dst-file'];
   const isHelp = cmdArgs.values['help'];
   const isWatch = cmdArgs.values['watch'];
   const isBeepError = cmdArgs.values['beep-error'];
   const isShowErrorStacktrace = cmdArgs.values["show-error-stacktrace"];
   const isMakeMapFile = false; // TODO: 将来対応予定
+  const bundleOutFile = cmdArgs.values['bundle-out-file'];
   const bundleParams = {
     bundleEntryPoints: (cmdArgs.values['bundle-entry-point']||[]),
     bundleExtraArgs: (cmdArgs.values['bundle-extra-args']||[]).join(' '),
@@ -119,12 +118,12 @@ const main = () => {
   //const [foo, bar, baz] = cmdArgs.positionals;
   if (isHelp) { return displayUsageAndExit() }
   if (!dstDir) {
-    if (!dstFile) { return displayUsageAndExit() }
+    if (!bundleOutFile) { return displayUsageAndExit() }
     dstDir = Fs.mkdtempSync("/tmp/send2js-build-");
     isNeedCleanUpDstDirAfter = 1;
   }
-  if (dstFile && !bundleParams.bundleEntryPoints.length) {
-    console.log(`Error: --dst-file should need with --bundle-entry-point`);
+  if (bundleOutFile && !bundleParams.bundleEntryPoints.length) {
+    console.log(`Error: --bundle-out-file should need with --bundle-entry-point`);
     Process.exit(1);
   }
   if (!srcDirs.length) { return displayUsageAndExit() }
@@ -150,7 +149,6 @@ const main = () => {
   const config = {
     srcDirs,
     dstDir,
-    dstFile,
     //seon2jsBaseDir, // NB: これは不要になった筈だが、もしかするとまだ必要かもしれない。消す予定だが、一旦保留
     isWatch,
     isBeepError,
@@ -158,6 +156,7 @@ const main = () => {
     isMakeMapFile,
     transpileFlags,
     isNeedCleanUpDstDirAfter,
+    bundleOutFile,
     bundleParams,
   };
   Build.bootstrap(config);

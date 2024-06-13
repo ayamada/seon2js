@@ -4,12 +4,6 @@ import * as Sa from 'seon/sa';
 import * as Seon from 'seon/seon';
 import * as SeonUtil from 'seon/util';
 import * as Transpile from "seon2js/transpile";
-import * as Gcc from "seon2js/gcc";
-
-
-// TODO: gccなしだとデータ比較しんどい(出力結果に括弧やspaceの増減があっただけでtest修正しないといけない)が、gccありだと実行が重すぎて気軽にテストできない。どうすればいい？
-//       - gcc以外に、軽量のjs製minifierを導入すべき？gccはjava製なので…
-//         - https://github.com/mishoo/UglifyJS
 
 
 // https://www.chaijs.com/api/assert/
@@ -32,15 +26,6 @@ const testChai = () => {
 
 
 const isVerbose = false;
-// NB: 余計な括弧判定が気に入らない場合、isApplyGcc=1にすれば括弧不要になる。
-//     ただしgccに通すので毎回とても重くなる。悩ましい
-// NB: gccを通すテストは必要だが重すぎるのでしたくない…
-//  if (isApplyGcc) {
-//    transpiled = await Gcc.compileAsync(transpiled, {
-//      //compilationLevel: "ADVANCED",
-//      extraOptions: (isVerbose ? "" : "-W QUIET"),
-//    }, isVerbose);
-//  }
 const tt = (seonCode) => Transpile.transpileAll(seonCode, {
   isUseCachedSpVars: 1,
   srcPath: Process.argv[1],

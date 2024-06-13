@@ -10,7 +10,6 @@ import * as ChildProcess from "node:child_process";
 
 
 import * as Transpile from "seon2js/transpile";
-import * as Gcc from "seon2js/gcc";
 import * as Sh from "seon2js/sh";
 
 
@@ -47,18 +46,6 @@ const parseOptions = {
       type: "boolean",
       short: "d",
     },
-    "dump-only-transpile-result": {
-      type: "boolean",
-      short: "t",
-    },
-    "compilation-level": {
-      type: "string",
-      short: "O",
-    },
-    "compilation-level-is-advanced": {
-      type: "boolean",
-      short: "A",
-    },
   }};
 
 
@@ -69,10 +56,7 @@ const displayUsageAndExit = () => {
       [foo.s2mjs] # read seon2js code by file and run
       [-e --eval "..."] # read seon2js code by parameter and run
       [-p --print "..."] # eval code and print last result (experimental)
-      [-O --compilation-level "SIMPLE"] # pass to -O for gcc argument
-      [-A] # shortcut for '-O ADVANCED'
-      [-d --dump] # apply gcc and dump gcc-passed code, do not run
-      [-t --dump-only-transpile-result] # dump transpiled js code, do not run
+      [-d --dump] # dump transpiled code, do not run
       [-v --verbose] # display stacktrace and exec cmd for debug
       [-h --help] # show help`);
   Process.exit(1);
@@ -122,31 +106,8 @@ const main = async () => {
     evalCode = Fs.readFileSync(targetFile, "utf-8");
     if (targetFile.match(/\.s2mjs$/)) { isMjs = 1 }
   }
-  let isDump = parsed.values["dump"];
-  let isDumpOnlyTranspileResult = parsed.values["dump-only-transpile-result"];
-  // デフォルトはeval実行をする
-  let isNeedRun = 1;
-  // ただし、もしisDumpのどちらかが真なら、eval引数のeval実行はしない
-  if (isDump || isDumpOnlyTranspileResult) { isNeedRun = false }
-  // もしeval実行が偽なら、最低表示保証としてisDumpを真にしておく
-  if (!isNeedRun) { isDump = true };
-  // ただし、もしisDumpが両方真なら、isDumpOnlyTranspileResultのみ真にする
-  if (isDump && isDumpOnlyTranspileResult) {
-    isDump = false;
-  }
-  const compilationLevelOriginal = parsed.values["compilation-level"];
-  let compilationLevel = compilationLevelOriginal;
-  const isCompilationLevelAdvanced = parsed.values["compilation-level-is-advanced"];
-  if (isCompilationLevelAdvanced) {
-    compilationLevel = "ADVANCED";
-  }
-  if (!compilationLevel) {
-    compilationLevel = "SIMPLE";
-  }
-  // gccにかけるかどうか。当初は-t以外はかけるようにしていたが、
-  // あまりに重いのでgcc関連のオプションが指定された時だけかける事にした。
-  // 具体的には以下が相当する。
-  const isApplyGcc = (isDump || compilationLevelOriginal || isCompilationLevelAdvanced);
+  const isDump = parsed.values["dump"];
+  const isNeedRun = !isDump;
 
   // まずtranspileする
   let transpiledJsCode;
@@ -159,7 +120,7 @@ const main = async () => {
     // TODO: transpileのエラー時にスタックトレースも表示したい。Errorインスタンスにくっつける形で持ってこれる筈なので対応する事
     displayErrorAndExit(e.message + ((targetFile != null) ? ` in ${targetFile}` : ''));
   }
-  if (isDumpOnlyTranspileResult) {
+  if (isDump) {
     console.log(transpiledJsCode);
     return;
   }
@@ -176,28 +137,10 @@ const main = async () => {
     Process.exit(1);
   };
 
-  // 次にgccにかける
-  let finalJsCode = transpiledJsCode;
-  if (isApplyGcc) {
-    try {
-      finalJsCode = await Gcc.compileAsync(transpiledJsCode, {
-        compilationLevel,
-        formatting: "PRETTY_PRINT",
-        extraOptions: "",
-      }, verbose);
-    } catch (e) {
-      failedAndExit(e);
-    }
-    if (isDump) {
-      console.log(finalJsCode);
-      return;
-    }
-  }
-
   // 最後に別プロセスnodeを起動し、eval実行する
   if (isNeedRun) {
     try {
-      Process.stdout.write(await runJsCode(finalJsCode, isShouldPrintLastValue, isVerbose, isMjs));
+      Process.stdout.write(await runJsCode(transpiledJsCode, isShouldPrintLastValue, isVerbose, isMjs));
     } catch (e) {
       failedAndExit(e);
     }
