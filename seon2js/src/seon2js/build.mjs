@@ -308,7 +308,10 @@ const runWatch = (config) => {
   const updateFn = (srcPath) => processFile(config, srcPath, resolveDstPath(config, srcPath));
   const unlinkFn = (srcPath) => {
     const dstPath = resolveDstPath(config, srcPath);
-    console.log(`unlink ${srcPath}, and unlink ${dstPath}`);
+    if (!Fs.existsSync(dstPath)) {
+      return console.log(`${srcPath} unlinked, but ${dstPath} is not exists`);
+    }
+    console.log(`${srcPath} unlinked, and unlink ${dstPath}`);
     try {
       Fs.unlinkSync(dstPath);
     } catch (e) {
