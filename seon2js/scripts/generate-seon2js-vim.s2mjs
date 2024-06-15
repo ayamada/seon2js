@@ -1,12 +1,6 @@
 #!/usr/bin/env node
-
-
 ;;; NB: このファイルはvim用syntaxを生成するスクリプトであると同時に、
 ;;;     簡易的なトランスパイルのdogfoodingでもある
-
-
-(import "node:process" Process)
-
 
 ;;; sp.s2sp の提供するspecial-formを全てsyntax登録しておく。
 ;;; ただし、全てspecial-formではあるものの、これらは「引数が全て平等なもの」と
@@ -19,12 +13,21 @@
 ;;; special-form的なインデントをしたい時が結構あるので、引数平等/不平等という
 ;;; 表現に改めた)
 
+;;; また、jsの予約語の多くも同時に登録しておく
 
-(const template "let s:specials =<< END
+
+(import "node:process" Process)
+
+
+(const template "
+let s:specials =<< END
 %%SPECIALNAMES%%
 END
 let s:lispwords =<< END
 %%LISPWORDNAMES%%
+END
+let s:jswords =<< END
+%%JSRESERVEDWORDS%%
 END
 function! s:SetupSeon2jsSyntax() abort
   setlocal filetype=clojure
@@ -35,11 +38,75 @@ function! s:SetupSeon2jsSyntax() abort
   for sp in s:lispwords
     execute 'setlocal lispwords+=' . sp
   endfor
+  for js in s:jswords
+    execute 'syntax keyword clojureVariable ' . js
+  endfor
 endfunction
 augroup seon2js
   autocmd!
   autocmd BufReadPost,BufNewFile *.seon,*.s2sp,*.s2mjs,*.s2js call s:SetupSeon2jsSyntax()
 augroup END")
+
+
+;;; NB: // はじまりにすると除外できる(ただし間に空白文字を入れない事！)
+(const words "
+  break
+  case
+  catch
+  class
+  const
+  continue
+  debugger
+  default
+  delete
+  do
+  else
+  export
+  extends
+  false
+  finally
+  for
+  function
+  if
+  import
+  in
+  instanceof
+  new
+  null
+  return
+  super
+  switch
+  this
+  throw
+  true
+  try
+  typeof
+  var
+  void
+  while
+  with
+  let
+  static
+  yield
+  await
+  enum
+  implements
+  interface
+  package
+  private
+  protected
+  public
+  arguments
+  as
+  from
+  async
+  eval
+  get
+  of
+  set
+  null
+  undefined
+  ")
 
 
 (const-fn sanitize-unsafe-char [name] (.replaceAll name "|" "\\|"))
@@ -51,12 +118,18 @@ augroup END")
                              sanitize-unsafe-char))
   (const lispword-names (.map (sp/all-lispword-names)
                               sanitize-unsafe-char))
+  (const js-reserved-words (.filter (.split words #"\\s+")
+                                    (fn [s] (and s.length
+                                                 (! (.startsWith s "//"))))))
   (set! result (.replace result
                          "%%SPECIALNAMES%%"
                          (.join special-names "\n")))
   (set! result (.replace result
                          "%%LISPWORDNAMES%%"
                          (.join lispword-names "\n")))
+  (set! result (.replace result
+                         "%%JSRESERVEDWORDS%%"
+                         (.join js-reserved-words "\n")))
   (console.log result))
 
 
