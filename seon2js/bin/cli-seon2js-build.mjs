@@ -68,10 +68,7 @@ const parseOptions = {
       type: "string",
       multiple: true,
     },
-    // TODO: あと以下あたりの追加のスイッチが必要。いい名前を決める事
-    //       - map生成フラグ
-    //       - 他には？
-    // TODO: 上記スイッチ追加後、忘れずにdisplayUsageAndExitにも追記する事！
+    // TODO: あとmap生成フラグが必要。いい名前を決める事
   }};
 
 

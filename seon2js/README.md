@@ -91,7 +91,7 @@ See `npx seon2js-build -h` for more information.
 
 An experiment of namespaced special-forms
 
-- 3.0.0: 20240???
+- 3.0.0: 20240616
     - BREAKING CHANGES: Remove `src/seon2js/gcc.mjs` and related codes
     - Add more options to `npx seon2js-build`
         - `--bundle-out-file`
