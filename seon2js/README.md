@@ -91,6 +91,10 @@ See `npx seon2js-build -h` for more information.
 
 An experiment of namespaced special-forms
 
+- 3.0.1: 20240619
+    - Fix problems caused by similar multiple `--src-dir`
+    - Fix noisy log by delete non- js/mjs/s2js/s2mjs file in watched dir
+
 - 3.0.0: 20240616
     - BREAKING CHANGES: Remove `src/seon2js/gcc.mjs` and related codes
     - Add more options to `npx seon2js-build`

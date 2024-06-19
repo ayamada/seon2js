@@ -116,6 +116,20 @@ const bundleState = {
 };
 
 
+// 複数のストレージpathと、その内のどれかに所属する一つのリソースpathを
+// 引数に渡す。すると返り値として対応するストレージpathの一つが返される。
+// 見付からない(resourcePathがstoragePathsの外にある)場合は、undefinedを返す。
+// 複数見付かった(storagePaths内に重複がある)場合は、例外を投げる。
+// TODO: もっと適切な関数名にしたい
+const determineOneStoragePath = (storagePaths, resourcePath) => {
+  // Path.relativeの結果が .. で始まらないならマッチ
+  const results = storagePaths.filter((sp)=>Path.relative(sp, resourcePath).indexOf('..'));
+  if (!results.length) { return }
+  if (results.length == 1) { return results[0] }
+  tnE(`found multiple storagePaths, cannot determine one by resourcePath=${JSON.stringify(resourcePath)}, storagePaths=${JSON.stringify(storagePaths)}`);
+};
+
+
 // TODO: この回りは https://esbuild.github.io/api/ 辺りを確認しながら、
 //       外部プロセス実行ではなくesbuildを実行したい。
 //       できれば差分ビルドおよびwatchモードにも対応させたい(めんどい)
@@ -128,12 +142,9 @@ export const formatBundleCommand = (config) => {
   // --bundle-entry-point で指定されたpathがもし --src-dir 内のpathであれば、それは --dst-dir 内のpathへとマッピングしなくてはならない
   const resolveEntryPointPath = (p) => {
     let entryPointPath = p;
-    // この辺りのpath書き換え処理については resolveDstPath を参照
-    // TODO: resolveDstPathと統合できないかどうかを検討
-    // TODO: indexOfによるマッチだと誤マッチが発生する可能性が残る、これは正しくはPath内にある何かを使わないといけない筈！
-    const matchedSrcDirs = srcDirs.filter((src)=>!p.indexOf(src));
-    if (matchedSrcDirs.length) {
-      entryPointPath = exchangeDstExt(p.replace(matchedSrcDirs[0], dstDir));
+    const matchedSrcDir = determineOneStoragePath(srcDirs, p);
+    if (matchedSrcDir) {
+      entryPointPath = exchangeDstExt(p.replace(matchedSrcDir, dstDir));
     }
     if (!Fs.existsSync(entryPointPath)) {
       const msg = `!!! bundle entry point file ${entryPointPath} not found, cannot bundle !!!`;
@@ -267,11 +278,11 @@ const exchangeDstExt = (dstPath) => exchangeExt(dstPath, resolveDstExt(dstPath))
 
 
 const resolveDstPath = (config, srcPath) => {
-  // まずconfig.srcDirsから、srcPathが先頭にないものを除外する
-  const srcs = config.srcDirs.filter((src)=>!srcPath.indexOf(src));
-  // srcsが1個に確定しない場合はエラー
-  if (srcs.length !== 1) { tnE(`cannot determine dstPath from srcPath=${srcPath}, srcDirs=${JSON.stringify(config.srcDirs)}`) }
-  return exchangeDstExt(srcPath.replace(srcs[0], config.dstDir));
+  const srcDir = determineOneStoragePath(config.srcDirs, srcPath);
+  if (srcDirs == null) {
+    tnE(`${JSON.stringify(srcPath)} is in outside of config.srcDirs=${JSON.stringify(config.srcDirs)}`);
+  }
+  return exchangeDstExt(srcPath.replace(srcDir, config.dstDir));
 };
 
 
@@ -308,7 +319,10 @@ const runWatch = (config) => {
   const updateFn = (srcPath) => processFile(config, srcPath, resolveDstPath(config, srcPath));
   const unlinkFn = (srcPath) => {
     const dstPath = resolveDstPath(config, srcPath);
-    console.log(`unlink ${srcPath}, and unlink ${dstPath}`);
+    if (!Fs.existsSync(dstPath)) {
+      return console.log(`${srcPath} unlinked, but ${dstPath} is not exists`);
+    }
+    console.log(`${srcPath} unlinked, and unlink ${dstPath}`);
     try {
       Fs.unlinkSync(dstPath);
     } catch (e) {
