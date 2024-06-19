@@ -278,11 +278,11 @@ const exchangeDstExt = (dstPath) => exchangeExt(dstPath, resolveDstExt(dstPath))
 
 
 const resolveDstPath = (config, srcPath) => {
-  const srcDir = determineOneStoragePath(config.srcDirs, srcPath);
-  if (srcDirs == null) {
+  const oneSrcDir = determineOneStoragePath(config.srcDirs, srcPath);
+  if (oneSrcDir == null) {
     tnE(`${JSON.stringify(srcPath)} is in outside of config.srcDirs=${JSON.stringify(config.srcDirs)}`);
   }
-  return exchangeDstExt(srcPath.replace(srcDir, config.dstDir));
+  return exchangeDstExt(srcPath.replace(oneSrcDir, config.dstDir));
 };
 
 
