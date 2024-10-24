@@ -1,7 +1,7 @@
 ;;; -*- mode: clojure; coding: utf-8; -*-
 ;;; vim:set ft=clojure:
 {:name "seon2js"
- :version "3.0.2"
+ :version "3.0.3"
  :description "transpile from seon to js"
  :homepage "https://github.com/ayamada/seon2js"
  :private false
@@ -17,9 +17,9 @@
  :bin {"seon2js-build" "./bin/cli-seon2js-build.mjs"
        "seon2js" "./bin/cli-seon2js-evaldump.mjs"}
  :dependencies {"seon"     "^6.1.0"
-                "chokidar" "^3.6.0"
-                "esbuild"  "^0.21.5"}
- :dev-dependencies {"rimraf" "^5.0.7"
+                "chokidar" "^4.0.1"
+                "esbuild"  "^0.24.0"}
+ :dev-dependencies {"rimraf" "^6.0.1"
                     "chai"   "^5.1.1"}
  :scripts {"update-package.json" "npx seon2json package.seon"
            "update-seon2js.vim"  "npx seon2js scripts/generate-seon2js-vim.s2mjs > ../ftdetect/seon2js.vim"
