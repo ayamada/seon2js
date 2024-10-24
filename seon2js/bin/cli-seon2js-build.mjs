@@ -73,8 +73,9 @@ const parseOptions = {
 
 
 const displayUsageAndExit = () => {
-  console.log(`usage:
-  npx seon2js
+  const basename = Path.basename(Process.argv[1]);
+  console.error(`usage:
+  npx ${basename}
     --src-dir=path/to/src # specify source directory or file
     [--src-dir=more/src] # can specify multiple directories or files
     [--src=another/src] # same as --src-dir

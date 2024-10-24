@@ -27,6 +27,7 @@
            ;; For test
            "test"       "node test/index.mjs"
            "test-build" "node test/build.mjs"
+           "test-watch" "node test/watch.mjs"
            ;; For internal develop
            "link-seon"  "cd ../seon && npm link"
            "link-all"   "npm run link-seon && npm link seon"

@@ -36,6 +36,7 @@
     "update-all": "npm run update-package.json && npm run update-seon2js.vim",
     "test": "node test/index.mjs",
     "test-build": "node test/build.mjs",
+    "test-watch": "node test/watch.mjs",
     "link-seon": "cd ../seon && npm link",
     "link-all": "npm run link-seon && npm link seon",
     "unlink-all": "npm unlink seon && npm rm -g seon",
