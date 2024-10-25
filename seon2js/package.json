@@ -1,6 +1,6 @@
 {
   "name": "seon2js",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "transpile from seon to js",
   "homepage": "https://github.com/ayamada/seon2js",
   "private": false,
@@ -23,11 +23,11 @@
   },
   "dependencies": {
     "seon": "^6.1.0",
-    "chokidar": "^3.6.0",
-    "esbuild": "^0.21.5"
+    "chokidar": "^4.0.1",
+    "esbuild": "^0.24.0"
   },
   "devDependencies": {
-    "rimraf": "^5.0.7",
+    "rimraf": "^6.0.1",
     "chai": "^5.1.1"
   },
   "scripts": {
@@ -36,6 +36,7 @@
     "update-all": "npm run update-package.json && npm run update-seon2js.vim",
     "test": "node test/index.mjs",
     "test-build": "node test/build.mjs",
+    "test-watch": "node test/watch.mjs",
     "link-seon": "cd ../seon && npm link",
     "link-all": "npm run link-seon && npm link seon",
     "unlink-all": "npm unlink seon && npm rm -g seon",

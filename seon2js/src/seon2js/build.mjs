@@ -68,7 +68,7 @@ const calculateCurrentNamespace = (srcPath, dstPath) => {
 };
 
 
-const transpileSeonToJs = async (config, srcPath, dstPath) => {
+const transpileSeonToJs = (config, srcPath, dstPath) => {
   const isMakeMapFile = config.isMakeMapFile;
   const currentNamespace = calculateCurrentNamespace(srcPath, dstPath);
   const content = Fs.readFileSync(srcPath, "utf-8");
@@ -308,9 +308,12 @@ const runOnce = (config) => config.srcDirs.forEach((srcDir) => {
 const runWatch = (config) => {
   console.log(`start to supervise ${config.srcDirs}`);
   const watcher = Chokidar.watch(config.srcDirs, {
-    // TODO: ここの設定をconfigからいじれるようにする
+    // TODO: ここの設定をconfigからいじれるようにする？
     //ignored: /(^|[\/\\])\../, // ignore dotfiles // 普通に ../seon2js/ みたいに指定するケースがあったので廃止
+    //ignored: (path, stats) => stats?.isFile() && !path.endsWith('.js'), // こういう関数渡しも可能らしい
     //usePolling: true, // polling監視を行う。cpuを消費するが、削除されたファイルが復活した時の監視ミスがなくなるらしい(これをしないと、src内のディレクトリを消してから復活させた時に、中のファイルの変更判定を追跡できなくなる不具合があるらしい)。でも有効にするかどうかはかなり悩む
+    persistent: true,
+    atomic: true,
     awaitWriteFinish: { // ファイルサイズに変化がなくなるまでイベント発火を待つ
       pollInterval: 50,
       stabilityThreshold: 100,
@@ -332,6 +335,7 @@ const runWatch = (config) => {
   watcher.on('add', updateFn);
   watcher.on('change', updateFn);
   watcher.on('unlink', unlinkFn);
+  //watcher.on('error', (e) => console.error(e));
 };
 
 
