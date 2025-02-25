@@ -91,6 +91,9 @@ See `npx seon2js-build -h` for more information.
 
 An experiment of namespaced special-forms
 
+- 3.0.4: 20250225
+    - Bump up version of dependencies
+
 - 3.0.3: 20241025
     - Prevent to terminate watcher process by unhandled rejections
 
