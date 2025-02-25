@@ -60,6 +60,9 @@ but different below.
 
 ## ChangeLog
 
+- 6.1.1: 20250225
+    - Bump up version of dependencies
+
 - 6.1.0: 20240610
     - Provide `export default`
 

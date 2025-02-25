@@ -1,6 +1,6 @@
 {
   "name": "seon",
-  "version": "6.1.0",
+  "version": "6.1.1",
   "description": "reader for S-Expression-Object-Notation",
   "homepage": "https://github.com/ayamada/seon2js",
   "private": false,
@@ -21,8 +21,8 @@
     "seon2json": "./cli-seon2json.mjs"
   },
   "devDependencies": {
-    "rimraf": "^5.0.7",
-    "chai": "^5.1.1"
+    "rimraf": "^6.0.1",
+    "chai": "^5.2.0"
   },
   "scripts": {
     "update-package.json": "npx seon2json package.seon",
