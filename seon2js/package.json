@@ -1,6 +1,6 @@
 {
   "name": "seon2js",
-  "version": "3.0.4",
+  "version": "3.0.5",
   "description": "transpile from seon to js",
   "homepage": "https://github.com/ayamada/seon2js",
   "private": false,
@@ -18,17 +18,17 @@
     "./*": "./src/seon2js/*.mjs"
   },
   "bin": {
-    "seon2js-build": "./bin/cli-seon2js-build.mjs",
-    "seon2js": "./bin/cli-seon2js-evaldump.mjs"
+    "seon2js-build": "bin/cli-seon2js-build.mjs",
+    "seon2js": "bin/cli-seon2js-evaldump.mjs"
   },
   "dependencies": {
     "seon": "^6.1.1",
     "chokidar": "^4.0.1",
-    "esbuild": "^0.25.0"
+    "esbuild": "^0.27.0"
   },
   "devDependencies": {
-    "rimraf": "^6.0.1",
-    "chai": "^5.2.0"
+    "rimraf": "^6.1.2",
+    "chai": "^6.2.1"
   },
   "scripts": {
     "update-package.json": "npx seon2json package.seon",

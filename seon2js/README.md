@@ -91,6 +91,10 @@ See `npx seon2js-build -h` for more information.
 
 An experiment of namespaced special-forms
 
+- 3.0.5: 20251125
+    - Bump up version of dependencies
+    - Do not create map file if `Transpile.getLastResultMap()` is empty
+
 - 3.0.4: 20250225
     - Bump up version of dependencies
 
