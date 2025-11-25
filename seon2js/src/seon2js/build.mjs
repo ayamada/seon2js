@@ -85,10 +85,12 @@ const transpileSeonToJs = (config, srcPath, dstPath) => {
   //     (mapファイルがある時は末尾にsourceMappingURLを追加する必要がある為)
   if (isMakeMapFile) {
     const mapResult = Transpile.getLastResultMap();
-    const mapPath = dstPath + ".map";
-    Fs.writeFileSync(mapPath, mapResult);
-    transpiledJsCode += `\n//# sourceMappingURL=${Path.basename(mapPath)}`;
-    msg += `, and generate "${mapPath}"`;
+    if (mapResult) {
+      const mapPath = dstPath + ".map";
+      Fs.writeFileSync(mapPath, mapResult);
+      transpiledJsCode += `\n//# sourceMappingURL=${Path.basename(mapPath)}`;
+      msg += `, and generate "${mapPath}"`;
+    }
   }
   Fs.writeFileSync(dstPath, transpiledJsCode);
   console.log(msg);
