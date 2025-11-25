@@ -18,8 +18,8 @@
     "./*": "./src/seon2js/*.mjs"
   },
   "bin": {
-    "seon2js-build": "./bin/cli-seon2js-build.mjs",
-    "seon2js": "./bin/cli-seon2js-evaldump.mjs"
+    "seon2js-build": "bin/cli-seon2js-build.mjs",
+    "seon2js": "bin/cli-seon2js-evaldump.mjs"
   },
   "dependencies": {
     "seon": "^6.1.1",
